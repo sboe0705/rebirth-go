@@ -3,7 +3,7 @@
 Notes for AI agents and contributors.
 
 ## Project
-Go implementation of a hex board game using Ebitengine (`github.com/hajimehoshi/ebiten/v2`). Goal: playable PC version including a computer opponent. Currently board display only.
+Go implementation of a hex board game using Ebitengine (`github.com/hajimehoshi/ebiten/v2`). Goal: playable PC version including a computer opponent. Currently board display and facility placement (no players, no scoring).
 
 ## Rules
 - Minimal and working; short explanations. Language for docs, comments, commit messages and user-facing text: **English**.

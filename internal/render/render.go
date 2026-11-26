@@ -27,7 +27,15 @@ var (
 		board.Cathedral:  {0x8a, 0x5a, 0xa8, 0xff},
 		board.RoundTower: {0xd8, 0xa0, 0x30, 0xff},
 	}
+	facilityCol = map[board.Facility]color.RGBA{
+		board.FoodFacility:   {0x2e, 0x6b, 0x1f, 0xff},
+		board.EnergyFacility: {0xd9, 0x82, 0x2b, 0xff},
+	}
+	invalidCol = color.RGBA{0xe0, 0x30, 0x30, 0xff}
 )
+
+// facilityScale is the size of a facility tile relative to its space.
+const facilityScale = 0.7
 
 // FitLayout computes a layout that fits the board centered into w×h pixels.
 func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
@@ -60,7 +68,10 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			if settlements {
 				border = settlementBorder
 			}
-			drawHex(dst, l, h, kindCol[t.Kind], border)
+			drawHex(dst, l, h, 1, kindCol[t.Kind], border)
+			if t.Facility != board.NoFacility {
+				drawHex(dst, l, h, facilityScale, facilityCol[t.Facility], borderCol)
+			}
 			if t.Bonus {
 				x, y := l.HexToPixel(h)
 				vector.DrawFilledCircle(dst, float32(x), float32(y), float32(l.Size/4), bonusCol, true)
@@ -69,24 +80,40 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 	}
 }
 
-func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, fill, border color.Color) {
+// DrawHover marks the space under the cursor: a translucent preview of
+// facility f if it can be placed there, otherwise a red outline.
+func DrawHover(dst *ebiten.Image, l layout.Layout, h hex.Hex, f board.Facility, ok bool) {
+	if !ok {
+		drawHex(dst, l, h, 1, nil, invalidCol)
+		return
+	}
+	c := facilityCol[f]
+	c.R, c.G, c.B, c.A = c.R/2, c.G/2, c.B/2, 0x80 // premultiplied alpha
+	drawHex(dst, l, h, facilityScale, c, borderCol)
+}
+
+// drawHex draws hexagon h scaled around its center; a nil fill draws only the border.
+func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, scale float64, fill, border color.Color) {
+	cx, cy := l.HexToPixel(h)
 	var p vector.Path
 	for i, c := range l.Corners(h) {
+		x, y := float32(cx+(c[0]-cx)*scale), float32(cy+(c[1]-cy)*scale)
 		if i == 0 {
-			p.MoveTo(float32(c[0]), float32(c[1]))
+			p.MoveTo(x, y)
 		} else {
-			p.LineTo(float32(c[0]), float32(c[1]))
+			p.LineTo(x, y)
 		}
 	}
 	p.Close()
 
-	fo := &vector.FillOptions{}
-	do := &vector.DrawPathOptions{AntiAlias: true}
-	do.ColorScale.ScaleWithColor(fill)
-	vector.FillPath(dst, &p, fo, do)
+	if fill != nil {
+		do := &vector.DrawPathOptions{AntiAlias: true}
+		do.ColorScale.ScaleWithColor(fill)
+		vector.FillPath(dst, &p, &vector.FillOptions{}, do)
+	}
 
 	so := &vector.StrokeOptions{Width: float32(math.Max(1, l.Size/15)), LineJoin: vector.LineJoinRound}
-	do = &vector.DrawPathOptions{AntiAlias: true}
+	do := &vector.DrawPathOptions{AntiAlias: true}
 	do.ColorScale.ScaleWithColor(border)
 	vector.StrokePath(dst, &p, so, do)
 }

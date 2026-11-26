@@ -1,7 +1,7 @@
 # rebirth-go
 
 PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
-Current state: display-only rendering of a hex board loaded from a map file, no interaction.
+Current state: hex board loaded from a map file; facilities can be placed (single player, no scoring yet).
 
 ## Requirements
 
@@ -23,6 +23,17 @@ go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt
 ./scripts/build-linux.sh
 ./scripts/build-windows.sh           # cross-compile, also works from Linux
 ```
+
+## Controls
+
+| Input | Action |
+|---|---|
+| Left click | place the selected facility on the space |
+| `F` / `E` / right click | select food / energy facility, right click toggles |
+
+Food facilities go on empty or food spaces, energy facilities on empty or energy spaces; one tile per space.
+The hovered space shows a preview, or a red outline if the facility is not allowed there.
+Facility tiles are drawn as smaller hexagons: food `#2e6b1f` dark green, energy `#d9822b` orange.
 
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.
 

@@ -37,7 +37,9 @@ var kindChars = map[rune]Kind{
 type Tile struct {
 	Kind  Kind
 	Bonus bool            // "+1" settlement space: harbour (Scotland) or wind collector (Ireland)
-	Area  *SettlementArea // framed settlement this space belongs to; nil unless Kind == Settlement
+	Area  *SettlementArea // settlement this space belongs to; nil unless Kind == Settlement
+
+	Facility Facility // placed facility tile, NoFacility if none
 }
 
 // MaxSettlementSize is the largest settlement: the extra-large one in Ireland.
