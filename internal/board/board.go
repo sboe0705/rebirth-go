@@ -70,6 +70,8 @@ type Board struct {
 	Name        string
 	Tiles       map[hex.Hex]*Tile
 	Settlements []*SettlementArea
+
+	points int // points scored while placing tiles, see Score
 }
 
 //go:embed maps/*.txt

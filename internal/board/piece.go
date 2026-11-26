@@ -63,11 +63,12 @@ func (b *Board) CanPlace(h hex.Hex, f Piece) error {
 	return nil
 }
 
-// Place puts piece f at h if allowed.
+// Place puts piece f at h if allowed and scores it.
 func (b *Board) Place(h hex.Hex, f Piece) error {
 	if err := b.CanPlace(h, f); err != nil {
 		return err
 	}
 	b.Tiles[h].Piece = f
+	b.points += b.placePoints(h)
 	return nil
 }

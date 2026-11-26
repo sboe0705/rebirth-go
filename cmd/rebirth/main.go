@@ -55,7 +55,11 @@ func (g *game) Draw(screen *ebiten.Image) {
 	if g.board.Tiles[g.hover] != nil {
 		render.DrawHover(screen, g.layout, g.hover, g.selected, g.board.CanPlace(g.hover, g.selected) == nil)
 	}
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("Selected: %v  (F / E / S or right click to switch, left click to place)\n%s", g.selected, g.msg))
+	sc := g.board.Score()
+	ebitenutil.DebugPrint(screen, fmt.Sprintf(
+		"Selected: %v  (F / E / S or right click to switch, left click to place)\n"+
+			"Points: %d  (placed %d, castles %d, open settlements %d)\n%s",
+		g.selected, sc.Total(), sc.Placed, sc.Castles, sc.OpenSettlements, g.msg))
 }
 
 func (g *game) Layout(_, _ int) (int, int) { return screenW, screenH }

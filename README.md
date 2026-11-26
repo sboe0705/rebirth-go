@@ -37,6 +37,16 @@ The hovered space shows a preview, or a red outline if the tile is not allowed t
 Placed tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt, settlement `#b0302a` red with house.
 Space icons are drawn in a darker shade (55 %) of the space color.
 
+### Scoring (single player, `internal/board/score.go`)
+
+The top left shows the points as if the game ended now:
+- **placed** – scored when placing: a facility scores the size of its group (adjacent tiles of the same type),
+  a "+1" space scores 1, a completed settlement scores small = houses, medium 5+3, large 8+5, extra-large 12+8+5.
+- **castles** – 5 per castle with at least one adjacent tile (no opponents, so no majority yet).
+- **open settlements** – houses on tiles in incomplete settlements.
+
+Not scored: cathedral mission cards, round tower bonuses. Each settlement tile counts as 1 house for now.
+
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.
 
 ## Map format
