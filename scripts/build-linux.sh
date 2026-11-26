@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Baut die Linux-Version (benötigt CGO + C-Compiler, siehe README).
+# Builds the Linux version (requires CGO + a C compiler, see README).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p bin

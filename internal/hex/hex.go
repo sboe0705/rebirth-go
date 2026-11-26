@@ -1,22 +1,22 @@
-// Package hex implementiert axiale Hex-Koordinaten (pointy-top, q nach rechts, r nach rechts unten).
+// Package hex implements axial hex coordinates (pointy-top, q to the right, r to the lower right).
 // Referenz: Red Blob Games, "Hexagonal Grids".
 package hex
 
-// Hex ist eine axiale Koordinate. s = -q - r ergibt sich implizit.
+// Hex is an axial coordinate. s = -q - r is implicit.
 type Hex struct{ Q, R int }
 
-// S liefert die dritte Cube-Komponente.
+// S returns the third cube component.
 func (h Hex) S() int { return -h.Q - h.R }
 
-// Directions sind die 6 Nachbarrichtungen.
+// Directions are the 6 neighbor directions.
 var Directions = [6]Hex{{+1, 0}, {+1, -1}, {0, -1}, {-1, 0}, {-1, +1}, {0, +1}}
 
 func (h Hex) Add(o Hex) Hex { return Hex{h.Q + o.Q, h.R + o.R} }
 
-// Neighbor liefert den Nachbarn in Richtung dir (0..5).
+// Neighbor returns the neighbor in direction dir (0..5).
 func (h Hex) Neighbor(dir int) Hex { return h.Add(Directions[dir]) }
 
-// Neighbors liefert alle 6 Nachbarkoordinaten (unabhängig davon, ob dort ein Feld existiert).
+// Neighbors returns all 6 neighbor coordinates (whether or not a tile exists there).
 func (h Hex) Neighbors() [6]Hex {
 	var n [6]Hex
 	for i, d := range Directions {
@@ -25,13 +25,13 @@ func (h Hex) Neighbors() [6]Hex {
 	return n
 }
 
-// Distance liefert die Hex-Distanz.
+// Distance returns the hex distance.
 func Distance(a, b Hex) int {
 	dq, dr := a.Q-b.Q, a.R-b.R
 	return (abs(dq) + abs(dr) + abs(dq+dr)) / 2
 }
 
-// Round rundet fraktionale axiale Koordinaten per Cube-Rounding.
+// Round rounds fractional axial coordinates using cube rounding.
 func Round(fq, fr float64) Hex {
 	fs := -fq - fr
 	q, r, s := roundf(fq), roundf(fr), roundf(fs)
@@ -45,8 +45,8 @@ func Round(fq, fr float64) Hex {
 	return Hex{int(q), int(r)}
 }
 
-// FromOffset wandelt "odd-r"-Offsetkoordinaten (Zeile, Spalte; ungerade Zeilen
-// nach rechts eingerückt) in axiale Koordinaten um.
+// FromOffset converts "odd-r" offset coordinates (column, row; odd rows
+// indented to the right) to axial coordinates.
 func FromOffset(col, row int) Hex {
 	return Hex{col - (row-(row&1))/2, row}
 }

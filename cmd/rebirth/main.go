@@ -26,7 +26,7 @@ func (g *game) Draw(screen *ebiten.Image) {
 func (g *game) Layout(_, _ int) (int, int) { return screenW, screenH }
 
 func main() {
-	mapName := flag.String("map", "example", "Name der eingebetteten Karte (internal/board/maps/<name>.txt)")
+	mapName := flag.String("map", "example", "name of the embedded map (internal/board/maps/<name>.txt)")
 	flag.Parse()
 
 	b, err := board.Load(*mapName)

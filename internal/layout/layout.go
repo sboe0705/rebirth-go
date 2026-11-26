@@ -1,4 +1,4 @@
-// Package layout rechnet zwischen Hex-Koordinaten und Pixeln um (pointy-top).
+// Package layout converts between hex coordinates and pixels (pointy-top).
 package layout
 
 import (
@@ -7,10 +7,10 @@ import (
 	"github.com/sboe0705/rebirth-go/internal/hex"
 )
 
-// Layout beschreibt Größe und Ursprung des Gitters in Pixeln.
+// Layout describes size and origin of the grid in pixels.
 type Layout struct {
-	Size             float64 // Radius eines Sechsecks
-	OriginX, OriginY float64 // Pixelposition von Hex{0,0}
+	Size             float64 // radius of a hexagon
+	OriginX, OriginY float64 // pixel position of Hex{0,0}
 }
 
 func (l Layout) HexToPixel(h hex.Hex) (x, y float64) {
@@ -27,7 +27,7 @@ func (l Layout) PixelToHex(x, y float64) hex.Hex {
 	return hex.Round(q, r)
 }
 
-// Corners liefert die 6 Eckpunkte (Winkel 30° + 60°·i).
+// Corners returns the 6 corner points (angle 30° + 60°·i).
 func (l Layout) Corners(h hex.Hex) [6][2]float64 {
 	cx, cy := l.HexToPixel(h)
 	var c [6][2]float64

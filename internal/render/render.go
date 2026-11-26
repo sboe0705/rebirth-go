@@ -1,4 +1,4 @@
-// Package render zeichnet ein Board mit Ebitengine. Keine Spiellogik.
+// Package render draws a board with Ebitengine. No game logic.
 package render
 
 import (
@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	Background = color.RGBA{0x2b, 0x5d, 0x8a, 0xff} // Meer
+	Background = color.RGBA{0x2b, 0x5d, 0x8a, 0xff} // sea
 	borderCol  = color.RGBA{0x20, 0x20, 0x20, 0xff}
 	terrainCol = map[board.Terrain]color.RGBA{
 		board.Grass:      {0x8c, 0xc0, 0x5a, 0xff},
@@ -25,7 +25,7 @@ var (
 	}
 )
 
-// FitLayout berechnet ein Layout, das das Board zentriert in w×h Pixel einpasst.
+// FitLayout computes a layout that fits the board centered into w×h pixels.
 func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
 	unit := layout.Layout{Size: 1}
 	minX, minY := math.Inf(1), math.Inf(1)
@@ -44,7 +44,7 @@ func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
 	}
 }
 
-// DrawBoard zeichnet alle Felder als gefüllte Sechsecke mit Rand.
+// DrawBoard draws all tiles as filled hexagons with a border.
 func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 	for h, t := range b.Tiles {
 		drawHex(dst, l, h, terrainCol[t.Terrain])

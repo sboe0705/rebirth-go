@@ -1,22 +1,22 @@
 # AGENTS.md
 
-Hinweise für KI-Agenten und Mitwirkende.
+Notes for AI agents and contributors.
 
-## Projekt
-Go-Umsetzung eines Hex-Brettspiels mit Ebitengine (`github.com/hajimehoshi/ebiten/v2`). Ziel: spielbare PC-Version inkl. Computer-Gegner. Aktuell nur Spielfeldanzeige.
+## Project
+Go implementation of a hex board game using Ebitengine (`github.com/hajimehoshi/ebiten/v2`). Goal: playable PC version including a computer opponent. Currently board display only.
 
-## Regeln
-- Minimal und funktionierend; kurze Erklärungen. Sprache in Doku/Kommentaren: Deutsch.
-- Spiellogik und Rendering strikt trennen: `internal/hex` und `internal/board` importieren nie Ebitengine und kennen keine Pixel. Pixelrechnung nur in `internal/layout`, Zeichnen nur in `internal/render`.
-- Koordinaten: axial `(q, r)`, pointy-top, Nachbarrichtungen `(+1,0) (+1,-1) (0,-1) (-1,0) (-1,+1) (0,+1)`. Formeln nach Red Blob Games „Hexagonal Grids“.
-- Spielfeld: `map[hex.Hex]*Tile`; fehlender Eintrag = kein Feld.
-- Karten als Textdateien in `internal/board/maps/` (Format siehe README).
-- Keine Grafiken, Texte oder Kartenlayouts aus kommerziellen Spielen ins Repo übernehmen.
+## Rules
+- Minimal and working; short explanations. Language for docs, comments, commit messages and user-facing text: **English**.
+- Strictly separate game logic and rendering: `internal/hex` and `internal/board` never import Ebitengine and know nothing about pixels. Pixel math only in `internal/layout`, drawing only in `internal/render`.
+- Coordinates: axial `(q, r)`, pointy-top, neighbor directions `(+1,0) (+1,-1) (0,-1) (-1,0) (-1,+1) (0,+1)`. Formulas per Red Blob Games "Hexagonal Grids".
+- Board: `map[hex.Hex]*Tile`; a missing entry means no tile.
+- Maps are text files in `internal/board/maps/` (format see README).
+- Do not add graphics, texts or map layouts from commercial games to the repo.
 
-## Prüfen
+## Checks
 ```sh
 go vet ./... && go test ./...
 ./scripts/build.sh
 ```
-Linux-Build braucht CGO und X11/GL-Header (siehe README); Windows wird mit `CGO_ENABLED=0` cross-kompiliert.
-Neue Logik in `hex`, `layout`, `board` mit Tests abdecken (laufen ohne Display).
+The Linux build needs CGO and X11/GL headers (see README); Windows is cross-compiled with `CGO_ENABLED=0`.
+Cover new logic in `hex`, `layout`, `board` with tests (they run without a display).

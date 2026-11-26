@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Testet und baut für Linux und Windows.
+# Tests and builds for Linux and Windows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 go vet ./...

@@ -1,55 +1,55 @@
 # rebirth-go
 
-PC-Umsetzung eines Hex-Brettspiels in Go mit [Ebitengine](https://ebitengine.org/).
-Aktueller Stand: reine Anzeige eines Hex-Spielfelds aus einer Kartendatei, keine Interaktion.
+PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
+Current state: display-only rendering of a hex board loaded from a map file, no interaction.
 
-## Voraussetzungen
+## Requirements
 
-- Go (Version siehe `go.mod`)
-- Linux: CGO + C-Compiler und X11/GL-Header. Fedora:
+- Go (version see `go.mod`)
+- Linux: CGO + a C compiler and X11/GL headers. Fedora:
   ```sh
   sudo dnf install gcc pkg-config mesa-libGL-devel mesa-libGLES-devel libXrandr-devel \
     libXcursor-devel libXinerama-devel libXi-devel libXxf86vm-devel alsa-lib-devel
   ```
-- Windows: keine weiteren Abhängigkeiten (Ebitengine braucht dort kein CGO).
+- Windows: no further dependencies (Ebitengine needs no CGO there).
 
-## Starten & Bauen
+## Run & build
 
 ```sh
-go run ./cmd/rebirth                 # Standardkarte "example"
-go run ./cmd/rebirth -map <name>     # lädt internal/board/maps/<name>.txt
+go run ./cmd/rebirth                 # default map "example"
+go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt
 
-./scripts/build.sh                   # vet + test + Linux- und Windows-Build nach bin/
+./scripts/build.sh                   # vet + test + Linux and Windows builds into bin/
 ./scripts/build-linux.sh
-./scripts/build-windows.sh           # Cross-Compile, auch von Linux aus
+./scripts/build-windows.sh           # cross-compile, also works from Linux
 ```
 
-CI (`.github/workflows/build.yml`) baut bei jedem Push für Linux und Windows und lädt die Binaries als Artefakte hoch.
+CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.
 
-## Kartenformat
+## Map format
 
-Karten liegen als Text unter `internal/board/maps/` und werden per `go:embed` eingebettet.
-Jede Zeile ist eine Hex-Reihe, jedes Zeichen eine Spalte („odd-r“: ungerade Zeilen sind um ein halbes Feld nach rechts versetzt).
-Zeilen mit `#` am Anfang sind Kommentare.
+Maps are text files under `internal/board/maps/` and are embedded via `go:embed`.
+Each line is a hex row, each character a column ("odd-r": odd rows are shifted right by half a tile).
+Lines starting with `#` are comments.
 
-| Zeichen | Bedeutung |
+| Character | Meaning |
 |---|---|
-| `G` | Grasland |
-| `F` | Wald |
-| `H` | Hochland |
-| `W` | See |
-| `S` | Siedlung |
-| `.` / Leerzeichen | kein Feld |
+| `G` | grass |
+| `F` | forest |
+| `H` | highland |
+| `W` | lake |
+| `S` | settlement |
+| `.` / space | no tile |
 
-Neue Geländetypen: `internal/board/board.go` (`Terrain`, `terrainChars`) und Farbe in `internal/render/render.go`.
+New terrain types: `internal/board/board.go` (`Terrain`, `terrainChars`) plus a color in `internal/render/render.go`.
 
-## Struktur
+## Structure
 
 ```
-cmd/rebirth/        Einstieg, ebiten.Game
-internal/hex/       Axiale Koordinaten, Nachbarn, Distanz, Rounding (ohne Pixel)
-internal/layout/    Hex <-> Pixel (pointy-top), Eckpunkte
-internal/board/     Tile/Board-Modell, Kartenloader, eingebettete Karten
-internal/render/    Zeichnen mit ebiten/v2/vector
-scripts/            Build-Skripte
+cmd/rebirth/        entry point, ebiten.Game
+internal/hex/       axial coordinates, neighbors, distance, rounding (no pixels)
+internal/layout/    hex <-> pixel (pointy-top), corner points
+internal/board/     Tile/Board model, map loader, embedded maps
+internal/render/    drawing with ebiten/v2/vector
+scripts/            build scripts
 ```

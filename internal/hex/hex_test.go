@@ -23,7 +23,7 @@ func TestRound(t *testing.T) {
 }
 
 func TestFromOffset(t *testing.T) {
-	// Zeile 1 (ungerade) ist nach rechts eingerückt: (0,1) liegt rechts unten von (0,0).
+	// Row 1 (odd) is indented to the right: (0,1) lies to the lower right of (0,0).
 	if FromOffset(0, 1) != (Hex{0, 1}) || FromOffset(0, 2) != (Hex{-1, 2}) {
 		t.Fatal("offset conversion wrong")
 	}

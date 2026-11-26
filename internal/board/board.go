@@ -1,4 +1,4 @@
-// Package board enthält das Spielfeld-Datenmodell und den Karten-Loader.
+// Package board contains the board data model and the map loader.
 package board
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/sboe0705/rebirth-go/internal/hex"
 )
 
-// Terrain ist der Geländetyp eines Feldes.
+// Terrain is the terrain type of a tile.
 type Terrain int
 
 const (
@@ -21,7 +21,7 @@ const (
 	Settlement
 )
 
-// terrainChars bildet Kartenzeichen auf Geländetypen ab.
+// terrainChars maps map characters to terrain types.
 var terrainChars = map[rune]Terrain{
 	'G': Grass, 'F': Forest, 'H': Highland, 'W': Lake, 'S': Settlement,
 }
@@ -30,7 +30,7 @@ type Tile struct {
 	Terrain Terrain
 }
 
-// Board ist ein beliebig geformtes Hex-Spielfeld. Fehlender Eintrag = kein Feld.
+// Board is an arbitrarily shaped hex board. A missing entry means no tile.
 type Board struct {
 	Name  string
 	Tiles map[hex.Hex]*Tile
@@ -39,7 +39,7 @@ type Board struct {
 //go:embed maps/*.txt
 var mapFS embed.FS
 
-// Load lädt eine eingebettete Karte, z. B. Load("example").
+// Load loads an embedded map, e.g. Load("example").
 func Load(name string) (*Board, error) {
 	data, err := mapFS.ReadFile("maps/" + name + ".txt")
 	if err != nil {
@@ -48,9 +48,9 @@ func Load(name string) (*Board, error) {
 	return Parse(name, string(data))
 }
 
-// Parse liest eine Karte im Textformat: jede Zeile ist eine Hex-Reihe
-// (odd-r-Offset: ungerade Zeilen sind um ein halbes Feld nach rechts versetzt),
-// jedes Zeichen eine Spalte. '.' oder ' ' = kein Feld, '#' am Zeilenanfang = Kommentar.
+// Parse reads a map in text format: each line is a hex row
+// (odd-r offset: odd rows are shifted right by half a tile),
+// each character a column. '.' or ' ' = no tile, '#' at line start = comment.
 func Parse(name, text string) (*Board, error) {
 	b := &Board{Name: name, Tiles: map[hex.Hex]*Tile{}}
 	sc := bufio.NewScanner(strings.NewReader(text))
@@ -66,7 +66,7 @@ func Parse(name, text string) (*Board, error) {
 			}
 			t, ok := terrainChars[c]
 			if !ok {
-				return nil, fmt.Errorf("%s: unbekanntes Zeichen %q in Zeile %d, Spalte %d", name, c, row, col)
+				return nil, fmt.Errorf("%s: unknown character %q in row %d, column %d", name, c, row, col)
 			}
 			b.Tiles[hex.FromOffset(col, row)] = &Tile{Terrain: t}
 		}
@@ -75,7 +75,7 @@ func Parse(name, text string) (*Board, error) {
 	return b, sc.Err()
 }
 
-// Radius erzeugt ein sechseckiges Feld mit Radius n (nur Grasland).
+// Radius creates a hexagon-shaped board with radius n (grass only).
 func Radius(n int) *Board {
 	b := &Board{Name: fmt.Sprintf("radius-%d", n), Tiles: map[hex.Hex]*Tile{}}
 	for q := -n; q <= n; q++ {

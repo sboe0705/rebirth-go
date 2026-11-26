@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Cross-Compile für Windows. Ebitengine braucht unter Windows kein CGO.
+# Cross-compiles for Windows. Ebitengine needs no CGO on Windows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p bin
