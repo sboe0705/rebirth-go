@@ -6,28 +6,48 @@ import (
 	"embed"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
 )
 
-// Terrain is the terrain type of a tile.
-type Terrain int
+// Kind is the type of a board space (Rebirth rules: SCO p. 2, IRL p. 2).
+type Kind int
 
 const (
-	Grass Terrain = iota
-	Forest
-	Highland
-	Lake
-	Settlement
+	Empty      Kind = iota // no symbol: food or energy facility allowed
+	Food                   // food symbol (leaves): food facility
+	Energy                 // energy symbol (lightning bolt): energy facility
+	Settlement             // house symbol: settlement tile
+	Castle                 // never holds tiles; castle control by adjacency
+	Cathedral              // never holds tiles; adjacency gives a mission card (Scotland)
+	RoundTower             // never holds tiles; adjacency gives a bonus (Ireland)
 )
 
-// terrainChars maps map characters to terrain types.
-var terrainChars = map[rune]Terrain{
-	'G': Grass, 'F': Forest, 'H': Highland, 'W': Lake, 'S': Settlement,
+// Buildable reports whether player tiles can be placed on this kind of space.
+func (k Kind) Buildable() bool { return k <= Settlement }
+
+// kindChars maps map characters to space kinds. Lowercase letters of
+// buildable kinds additionally mark a "+1" space (harbour / wind collector).
+var kindChars = map[rune]Kind{
+	'O': Empty, 'F': Food, 'E': Energy, 'S': Settlement,
+	'C': Castle, 'K': Cathedral, 'R': RoundTower,
 }
 
+// Tile is a board space. Water is not modelled: no entry means no space.
 type Tile struct {
-	Terrain Terrain
+	Kind  Kind
+	Bonus bool // "+1" space: harbour (Scotland) or wind collector (Ireland)
+}
+
+func parseChar(c rune) (*Tile, bool) {
+	if k, ok := kindChars[c]; ok {
+		return &Tile{Kind: k}, true
+	}
+	if k, ok := kindChars[unicode.ToUpper(c)]; ok && unicode.IsLower(c) && k.Buildable() {
+		return &Tile{Kind: k, Bonus: true}, true
+	}
+	return nil, false
 }
 
 // Board is an arbitrarily shaped hex board. A missing entry means no tile.
@@ -64,24 +84,24 @@ func Parse(name, text string) (*Board, error) {
 			if c == '.' || c == ' ' {
 				continue
 			}
-			t, ok := terrainChars[c]
+			t, ok := parseChar(c)
 			if !ok {
 				return nil, fmt.Errorf("%s: unknown character %q in row %d, column %d", name, c, row, col)
 			}
-			b.Tiles[hex.FromOffset(col, row)] = &Tile{Terrain: t}
+			b.Tiles[hex.FromOffset(col, row)] = t
 		}
 		row++
 	}
 	return b, sc.Err()
 }
 
-// Radius creates a hexagon-shaped board with radius n (grass only).
+// Radius creates a hexagon-shaped board with radius n (empty spaces only).
 func Radius(n int) *Board {
 	b := &Board{Name: fmt.Sprintf("radius-%d", n), Tiles: map[hex.Hex]*Tile{}}
 	for q := -n; q <= n; q++ {
 		for r := -n; r <= n; r++ {
 			if h := (hex.Hex{Q: q, R: r}); abs(h.S()) <= n {
-				b.Tiles[h] = &Tile{Terrain: Grass}
+				b.Tiles[h] = &Tile{Kind: Empty}
 			}
 		}
 	}

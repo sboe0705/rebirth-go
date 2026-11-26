@@ -16,12 +16,15 @@ import (
 var (
 	Background = color.RGBA{0x2b, 0x5d, 0x8a, 0xff} // sea
 	borderCol  = color.RGBA{0x20, 0x20, 0x20, 0xff}
-	terrainCol = map[board.Terrain]color.RGBA{
-		board.Grass:      {0x8c, 0xc0, 0x5a, 0xff},
-		board.Forest:     {0x3d, 0x7a, 0x3a, 0xff},
-		board.Highland:   {0x9a, 0x86, 0x6b, 0xff},
-		board.Lake:       {0x5d, 0x9c, 0xd6, 0xff},
-		board.Settlement: {0xd9, 0xb3, 0x6c, 0xff},
+	bonusCol   = color.RGBA{0xff, 0xff, 0xff, 0xff} // "+1" marker
+	kindCol    = map[board.Kind]color.RGBA{
+		board.Empty:      {0xc8, 0xd6, 0x9a, 0xff},
+		board.Food:       {0x6f, 0xb0, 0x4a, 0xff},
+		board.Energy:     {0xe8, 0xc5, 0x3a, 0xff},
+		board.Settlement: {0xc0, 0x84, 0x5a, 0xff},
+		board.Castle:     {0x70, 0x70, 0x78, 0xff},
+		board.Cathedral:  {0x8a, 0x5a, 0xa8, 0xff},
+		board.RoundTower: {0xd8, 0xa0, 0x30, 0xff},
 	}
 )
 
@@ -47,7 +50,11 @@ func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
 // DrawBoard draws all tiles as filled hexagons with a border.
 func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 	for h, t := range b.Tiles {
-		drawHex(dst, l, h, terrainCol[t.Terrain])
+		drawHex(dst, l, h, kindCol[t.Kind])
+		if t.Bonus {
+			x, y := l.HexToPixel(h)
+			vector.DrawFilledCircle(dst, float32(x), float32(y), float32(l.Size/4), bonusCol, true)
+		}
 	}
 }
 

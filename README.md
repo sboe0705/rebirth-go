@@ -32,16 +32,23 @@ Maps are text files under `internal/board/maps/` and are embedded via `go:embed`
 Each line is a hex row, each character a column ("odd-r": odd rows are shifted right by half a tile).
 Lines starting with `#` are comments.
 
+Space kinds follow the Rebirth rules (Scotland and Ireland boards):
+
 | Character | Meaning |
 |---|---|
-| `G` | grass |
-| `F` | forest |
-| `H` | highland |
-| `W` | lake |
-| `S` | settlement |
-| `.` / space | no tile |
+| `O` | empty space (no symbol): food or energy facility |
+| `F` | food space: food facility |
+| `E` | energy space: energy facility |
+| `S` | settlement space |
+| `C` | castle space (no tiles) |
+| `K` | cathedral space (no tiles, Scotland) |
+| `R` | round tower space (no tiles, Ireland) |
+| `o` `f` `e` `s` | same as uppercase, plus "+1" (harbour in Scotland, wind collector in Ireland) |
+| `.` / space | no space (water / off-board) |
 
-New terrain types: `internal/board/board.go` (`Terrain`, `terrainChars`) plus a color in `internal/render/render.go`.
+Not yet modelled: settlement frames (which settlement spaces form one small/medium/large settlement), castle/cathedral names, 2-player blocked spaces.
+
+New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go`.
 
 ## Structure
 
