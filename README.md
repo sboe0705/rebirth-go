@@ -33,7 +33,8 @@ go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt
 
 Food facilities go on empty or food spaces, energy facilities on empty or energy spaces; one tile per space.
 The hovered space shows a preview, or a red outline if the facility is not allowed there.
-Facility tiles are drawn as smaller hexagons: food `#2e6b1f` dark green, energy `#d9822b` orange.
+Facility tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt.
+Space icons are drawn in a darker shade (55 %) of the space color.
 
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.
 
@@ -45,17 +46,17 @@ Lines starting with `#` are comments.
 
 Space kinds follow the Rebirth rules (Scotland and Ireland boards):
 
-| Character | Meaning | Color |
-|---|---|---|
-| `O` | empty space (no symbol): food or energy facility | `#c8d69a` pale green |
-| `F` | food space: food facility | `#6fb04a` green |
-| `E` | energy space: energy facility | `#e8c53a` yellow |
-| `S` | settlement space | `#c0845a` brown |
-| `C` | castle space (no tiles) | `#707078` grey |
-| `K` | cathedral space (no tiles, Scotland) | `#8a5aa8` purple |
-| `R` | round tower space (no tiles, Ireland) | `#d8a030` amber |
-| `s` | settlement space with "+1" (harbour in Scotland, wind collector in Ireland) | `#c0845a` brown + white dot `#ffffff` |
-| `.` / space | no space (water / off-board) | sea background `#2b5d8a` |
+| Character | Meaning | Color | Icon |
+|---|---|---|---|
+| `O` | empty space (no symbol): food or energy facility | `#c8d69a` pale green | – |
+| `F` | food space: food facility | `#6fb04a` green | leaf |
+| `E` | energy space: energy facility | `#e8c53a` yellow | lightning bolt |
+| `S` | settlement space | `#c0845a` brown | house |
+| `C` | castle space (no tiles) | `#707078` grey | battlements |
+| `K` | cathedral space (no tiles, Scotland) | `#8a5aa8` purple | cross |
+| `R` | round tower space (no tiles, Ireland) | `#d8a030` amber | tower |
+| `s` | settlement space with "+1" (harbour in Scotland, wind collector in Ireland) | `#c0845a` brown | house + white plus `#ffffff` |
+| `.` / space | no space (water / off-board) | sea background `#2b5d8a` | – |
 
 ### Settlements
 
@@ -65,7 +66,7 @@ Settlement spaces are drawn with white edges (`#ffffff`).
 
 Not yet modelled: castle/cathedral names, 2-player blocked spaces.
 
-New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go`.
+New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go` and an icon in `internal/render/icons.go`.
 
 ## Structure
 

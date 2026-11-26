@@ -31,7 +31,8 @@ var (
 		board.FoodFacility:   {0x2e, 0x6b, 0x1f, 0xff},
 		board.EnergyFacility: {0xd9, 0x82, 0x2b, 0xff},
 	}
-	invalidCol = color.RGBA{0xe0, 0x30, 0x30, 0xff}
+	invalidCol     = color.RGBA{0xe0, 0x30, 0x30, 0xff}
+	iconOnFacility = color.RGBA{0xff, 0xff, 0xff, 0xff}
 )
 
 // facilityScale is the size of a facility tile relative to its space.
@@ -69,12 +70,17 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 				border = settlementBorder
 			}
 			drawHex(dst, l, h, 1, kindCol[t.Kind], border)
-			if t.Facility != board.NoFacility {
+			x, y := l.HexToPixel(h)
+			cx, cy, sz := float32(x), float32(y), float32(l.Size)
+			switch {
+			case t.Facility != board.NoFacility:
 				drawHex(dst, l, h, facilityScale, facilityCol[t.Facility], borderCol)
-			}
-			if t.Bonus {
-				x, y := l.HexToPixel(h)
-				vector.DrawFilledCircle(dst, float32(x), float32(y), float32(l.Size/4), bonusCol, true)
+				drawFacilityIcon(dst, t.Facility, cx, cy, 0.35*sz, iconOnFacility)
+			case t.Bonus:
+				drawKindIcon(dst, t.Kind, cx, cy+0.15*sz, 0.4*sz, darker(kindCol[t.Kind]))
+				drawPlus(dst, cx, cy-0.55*sz, 0.15*sz, bonusCol)
+			default:
+				drawKindIcon(dst, t.Kind, cx, cy, 0.45*sz, darker(kindCol[t.Kind]))
 			}
 		}
 	}
