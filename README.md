@@ -34,17 +34,17 @@ Lines starting with `#` are comments.
 
 Space kinds follow the Rebirth rules (Scotland and Ireland boards):
 
-| Character | Meaning |
-|---|---|
-| `O` | empty space (no symbol): food or energy facility |
-| `F` | food space: food facility |
-| `E` | energy space: energy facility |
-| `S` | settlement space |
-| `C` | castle space (no tiles) |
-| `K` | cathedral space (no tiles, Scotland) |
-| `R` | round tower space (no tiles, Ireland) |
-| `o` `f` `e` `s` | same as uppercase, plus "+1" (harbour in Scotland, wind collector in Ireland) |
-| `.` / space | no space (water / off-board) |
+| Character | Meaning | Color |
+|---|---|---|
+| `O` | empty space (no symbol): food or energy facility | `#c8d69a` pale green |
+| `F` | food space: food facility | `#6fb04a` green |
+| `E` | energy space: energy facility | `#e8c53a` yellow |
+| `S` | settlement space | `#c0845a` brown |
+| `C` | castle space (no tiles) | `#707078` grey |
+| `K` | cathedral space (no tiles, Scotland) | `#8a5aa8` purple |
+| `R` | round tower space (no tiles, Ireland) | `#d8a030` amber |
+| `o` `f` `e` `s` | same as uppercase, plus "+1" (harbour in Scotland, wind collector in Ireland) | color of the uppercase kind + white dot `#ffffff` |
+| `.` / space | no space (water / off-board) | sea background `#2b5d8a` |
 
 Not yet modelled: settlement frames (which settlement spaces form one small/medium/large settlement), castle/cathedral names, 2-player blocked spaces.
 
