@@ -9,10 +9,6 @@ import (
 // Scoring for a single player (no opponents yet), Rebirth rules SCO p. 3–4,
 // IRL p. 3–4. Mission cards and round tower bonuses are not scored.
 
-// HousesPerSettlementTile is the number of settlement symbols on a placed
-// settlement tile. Tiles with 2–4 houses are not modelled yet.
-const HousesPerSettlementTile = 1
-
 // CastlePoints is the final score per controlled castle.
 const CastlePoints = 5
 
@@ -80,7 +76,7 @@ func (b *Board) pieceGains(h hex.Hex) []Gain {
 		if a := t.Area; b.complete(a) {
 			p := completedSettlementPoints[a.Size()]
 			if a.Size() == 1 {
-				p = HousesPerSettlementTile
+				p = t.Houses
 			}
 			g = append(g, Gain{p, settlementNames[a.Size()] + " settlement completed"})
 		}
@@ -139,9 +135,7 @@ func (b *Board) Score() Score {
 			continue
 		}
 		for _, h := range a.Spaces {
-			if b.Tiles[h].Piece == SettlementTile {
-				s.OpenSettlements += HousesPerSettlementTile
-			}
+			s.OpenSettlements += b.Tiles[h].Houses
 		}
 	}
 	return s

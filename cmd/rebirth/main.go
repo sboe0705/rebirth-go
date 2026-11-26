@@ -20,48 +20,63 @@ import (
 const screenW, screenH = 1024, 768 // initial window size
 
 type game struct {
-	board    *board.Board
-	layout   layout.Layout
-	w, h     int         // current screen size; the layout is refitted when it changes
-	selected board.Piece // piece placed by the next left click
-	hover    hex.Hex
-	msg      string
+	board  *board.Board
+	layout layout.Layout
+	w, h   int // current screen size; the layout is refitted when it changes
+	supply *board.Supply
+	hand   board.Chip // tile placed by the next left click
+	over   bool       // supply empty, game ended
+	hover  hex.Hex
+	msg    string
+}
+
+// draw takes the next tile from the supply into the hand. Tiles that fit
+// nowhere on the board are discarded (the rules don't cover this case).
+func (g *game) draw() {
+	for {
+		c, ok := g.supply.Draw()
+		if !ok {
+			g.over, g.hand = true, board.Chip{}
+			return
+		}
+		if g.board.CanPlaceAnywhere(c.Piece) {
+			g.hand = c
+			return
+		}
+		g.msg = fmt.Sprintf("drawn %v fits nowhere, discarded", c)
+	}
 }
 
 func (g *game) Update() error {
-	switch {
-	case inpututil.IsKeyJustPressed(ebiten.KeyF):
-		g.selected = board.FoodFacility
-	case inpututil.IsKeyJustPressed(ebiten.KeyE):
-		g.selected = board.EnergyFacility
-	case inpututil.IsKeyJustPressed(ebiten.KeyS):
-		g.selected = board.SettlementTile
-	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight):
-		g.selected = g.selected%board.SettlementTile + 1 // cycle food -> energy -> settlement
-	}
 	x, y := ebiten.CursorPosition()
 	g.hover = g.layout.PixelToHex(float64(x), float64(y))
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) && g.board.Tiles[g.hover] != nil {
-		if err := g.board.Place(g.hover, g.selected); err != nil {
-			g.msg = fmt.Sprintf("cannot place %v: %v", g.selected, err)
-		} else {
-			g.msg = ""
-		}
+	if g.over || !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || g.board.Tiles[g.hover] == nil {
+		return nil
 	}
+	if err := g.board.PlaceChip(g.hover, g.hand); err != nil {
+		g.msg = fmt.Sprintf("cannot place %v: %v", g.hand, err)
+		return nil
+	}
+	g.msg = ""
+	g.draw()
 	return nil
 }
 
 func (g *game) Draw(screen *ebiten.Image) {
 	screen.Fill(render.Background)
 	render.DrawBoard(screen, g.board, g.layout)
-	if g.board.Tiles[g.hover] != nil {
-		render.DrawHover(screen, g.layout, g.hover, g.selected, g.board.CanPlace(g.hover, g.selected) == nil)
+	if !g.over && g.board.Tiles[g.hover] != nil {
+		render.DrawHover(screen, g.layout, g.hover, g.hand.Piece, g.board.CanPlace(g.hover, g.hand.Piece) == nil)
 	}
 	sc := g.board.Score()
+	head := fmt.Sprintf("Next tile: %v  (left click to place; %d left in supply)", g.hand, g.supply.Len())
+	pts := "Points"
+	if g.over {
+		head, pts = "Game over: all tiles placed", "Final score"
+	}
 	ebitenutil.DebugPrint(screen, fmt.Sprintf(
-		"Selected: %v  (F / E / S or right click to switch, left click to place)\n"+
-			"Points: %d  (placed %d, castles %d, open settlements %d)\n%s\n%s",
-		g.selected, sc.Total(), sc.Placed, sc.Castles, sc.OpenSettlements, lastPlacement(g.board.LastGains()), g.msg))
+		"%s\n%s: %d  (placed %d, castles %d, open settlements %d)\n%s\n%s",
+		head, pts, sc.Total(), sc.Placed, sc.Castles, sc.OpenSettlements, lastPlacement(g.board.LastGains()), g.msg))
 }
 
 // lastPlacement explains the points of the most recent placement,
@@ -103,15 +118,15 @@ func (g *game) Layout(w, h int) (int, int) {
 
 func main() {
 	mapName := flag.String("map", "random", `"random" or name of an embedded map (internal/board/maps/<name>.txt)`)
-	seed := flag.Uint64("seed", 0, "seed for the random map (0 = new random seed)")
+	seed := flag.Uint64("seed", 0, "seed for the random map and the tile order (0 = new random seed)")
 	flag.Parse()
 
+	if *seed == 0 {
+		*seed = rand.Uint64()
+	}
 	var b *board.Board
 	var err error
 	if *mapName == "random" {
-		if *seed == 0 {
-			*seed = rand.Uint64()
-		}
 		b, err = board.Random(*seed, board.DefaultRandom)
 	} else {
 		b, err = board.Load(*mapName)
@@ -121,8 +136,13 @@ func main() {
 	}
 	ebiten.SetWindowSize(screenW, screenH)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
-	ebiten.SetWindowTitle("rebirth-go – " + b.Name)
-	g := &game{board: b, selected: board.FoodFacility}
+	title := "rebirth-go – " + b.Name
+	if *mapName != "random" {
+		title += fmt.Sprintf(" (seed %d)", *seed)
+	}
+	ebiten.SetWindowTitle(title)
+	g := &game{board: b, supply: board.NewSupply(*seed)}
+	g.draw()
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

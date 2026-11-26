@@ -54,6 +54,27 @@ func drawPieceIcon(dst *ebiten.Image, f board.Piece, x, y, s float32, c color.Co
 	}
 }
 
+// houseSpots are the icon offsets (in units of the icon size) for 1–4 houses.
+var houseSpots = [][]pt{
+	{{0, 0}},
+	{{-0.55, 0}, {0.55, 0}},
+	{{0, -0.5}, {-0.55, 0.5}, {0.55, 0.5}},
+	{{-0.55, -0.5}, {0.55, -0.5}, {-0.55, 0.5}, {0.55, 0.5}},
+}
+
+// drawHouses draws n house icons (the settlement symbols of a tile) around x, y.
+func drawHouses(dst *ebiten.Image, n int, x, y, s float32, c color.Color) {
+	if n < 1 || n > len(houseSpots) {
+		return
+	}
+	if n > 1 {
+		s *= 0.55
+	}
+	for _, o := range houseSpots[n-1] {
+		fillPoly(dst, houseIcon, x+o[0]*2*s, y+o[1]*2*s, s, c)
+	}
+}
+
 // drawPlus draws the "+1" marker as a plus sign.
 func drawPlus(dst *ebiten.Image, x, y, s float32, c color.Color) {
 	fillPoly(dst, plusV, x, y, s, c)

@@ -1,7 +1,7 @@
 # rebirth-go
 
 PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
-Current state: hex board loaded from a map file; facilities and settlement tiles can be placed (single player, no scoring yet).
+Current state: single-player game: tiles are drawn at random from a shuffled supply and placed on the board, with scoring.
 
 ## Requirements
 
@@ -17,7 +17,7 @@ Current state: hex board loaded from a map file; facilities and settlement tiles
 
 ```sh
 go run ./cmd/rebirth                 # new random map on every start
-go run ./cmd/rebirth -seed 42        # reproduce a random map (seed is shown in the window title)
+go run ./cmd/rebirth -seed 42        # reproduce a random map and tile order (seed is shown in the window title)
 go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g. -map example
 
 ./scripts/build.sh                   # vet + test + Linux and Windows builds into bin/
@@ -29,13 +29,21 @@ go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g
 
 | Input | Action |
 |---|---|
-| Left click | place the selected tile on the space |
+| Left click | place the next tile (shown top left) on the space |
 | Resize / maximize window | the board is refitted to the window |
-| `F` / `E` / `S` / right click | select food facility / energy facility / settlement tile, right click cycles |
+
+### Tiles (`internal/board/supply.go`)
+
+The player has one colour set of 36 tiles: 12 food facilities, 12 energy facilities and 3 settlement tiles each with 1, 2, 3 and 4 houses.
+At the start the set is shuffled and 2 tiles are set aside unused; the other 34 form the supply.
+The next tile is drawn at random from the supply and must be placed before the following one is drawn.
+A drawn tile that fits nowhere on the board is discarded (the rules don't cover this).
+The game ends when the supply is empty; the points shown then are the final score.
 
 Food facilities go on empty or food spaces, energy facilities on empty or energy spaces, settlement tiles on settlement spaces; one tile per space.
+A facility may go on a space of the other facility type only if no free empty space and no free space of its own type is left.
 The hovered space shows a preview, or a red outline if the tile is not allowed there.
-Placed tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt, settlement `#b0302a` red with house.
+Placed tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt, settlement `#b0302a` red with 1–4 houses (its settlement symbols).
 Space icons are drawn in a darker shade (55 %) of the space color.
 
 ### Scoring (single player, `internal/board/score.go`)
@@ -50,7 +58,7 @@ The line below explains the most recent placement, e.g.
 `Last placement: +9 = 1 (harbor) + 8 (medium settlement completed)` or
 `Last placement: +3 (food facility group of 3); castle controlled (5 at game end)`.
 
-Not scored: cathedral mission cards, round tower bonuses. Each settlement tile counts as 1 house for now.
+Not scored: cathedral mission cards, round tower bonuses.
 
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.
 

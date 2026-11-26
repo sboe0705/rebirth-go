@@ -15,7 +15,14 @@ func placeAll(t *testing.T, text string, moves ...any) *Board {
 	}
 	for i := 0; i < len(moves); i += 2 {
 		h := hex.FromOffset(moves[i].(int), 0)
-		if err := b.Place(h, moves[i+1].(Piece)); err != nil {
+		var err error
+		switch m := moves[i+1].(type) {
+		case Piece:
+			err = b.Place(h, m)
+		case Chip:
+			err = b.PlaceChip(h, m)
+		}
+		if err != nil {
 			t.Fatalf("Place(col %d): %v", moves[i], err)
 		}
 	}
@@ -38,6 +45,8 @@ func TestScore(t *testing.T) {
 			0, SettlementTile, 1, SettlementTile, 2, SettlementTile), Score{Placed: 13}},
 		{"open settlement", placeAll(t, "SSS",
 			0, SettlementTile, 2, SettlementTile), Score{OpenSettlements: 2}},
+		{"houses", placeAll(t, "S.SSS",
+			0, Chip{SettlementTile, 3}, 2, Chip{SettlementTile, 4}, 4, Chip{SettlementTile, 2}), Score{Placed: 3, OpenSettlements: 6}},
 		{"castle", placeAll(t, "OCO",
 			0, FoodFacility, 2, FoodFacility), Score{Placed: 2, Castles: 5}},
 		{"no castle", placeAll(t, "OOC"), Score{}},
