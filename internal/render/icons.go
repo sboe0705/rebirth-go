@@ -67,7 +67,12 @@ func drawHouses(dst *ebiten.Image, n int, x, y, s float32, c color.Color) {
 	if n < 1 || n > len(houseSpots) {
 		return
 	}
-	if n > 1 {
+	switch {
+	case n == 2:
+		s *= 0.7 // two side by side have more room
+	case n == 3:
+		s *= 0.62
+	case n > 3:
 		s *= 0.55
 	}
 	for _, o := range houseSpots[n-1] {
@@ -98,6 +103,18 @@ func drawLeaf(dst *ebiten.Image, x, y, s float32, c color.Color) {
 }
 
 func fillPoly(dst *ebiten.Image, pts []pt, x, y, s float32, c color.Color) {
+	fill(dst, polyPath(pts, x, y, s), c)
+}
+
+// outlinePoly draws only the outline of polygon pts with the given stroke width.
+func outlinePoly(dst *ebiten.Image, pts []pt, x, y, s float32, c color.Color, width float32) {
+	so := &vector.StrokeOptions{Width: width, LineJoin: vector.LineJoinRound}
+	do := &vector.DrawPathOptions{AntiAlias: true}
+	do.ColorScale.ScaleWithColor(c)
+	vector.StrokePath(dst, polyPath(pts, x, y, s), so, do)
+}
+
+func polyPath(pts []pt, x, y, s float32) *vector.Path {
 	var p vector.Path
 	for i, q := range pts {
 		if i == 0 {
@@ -107,13 +124,18 @@ func fillPoly(dst *ebiten.Image, pts []pt, x, y, s float32, c color.Color) {
 		}
 	}
 	p.Close()
-	fill(dst, &p, c)
+	return &p
 }
 
 func fill(dst *ebiten.Image, p *vector.Path, c color.Color) {
 	do := &vector.DrawPathOptions{AntiAlias: true}
 	do.ColorScale.ScaleWithColor(c)
 	vector.FillPath(dst, p, &vector.FillOptions{}, do)
+}
+
+// isLight reports whether c is so bright that white on it is hard to see.
+func isLight(c color.RGBA) bool {
+	return 299*int(c.R)+587*int(c.G)+114*int(c.B) > 170*1000
 }
 
 // darker returns c with RGB scaled to 55 %.

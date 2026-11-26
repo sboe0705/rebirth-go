@@ -45,15 +45,15 @@ The game ends when all supplies are empty; the points shown then are the final s
 
 ### Players (`cmd/rebirth/main.go`)
 
-You are player 1 (blue) and start; computer players (pink, black, white) follow in turn order.
+You are player 1 (blue) and start; computer players (red, yellow, green) follow in turn order.
 A computer player places its tile on a random allowed space after a short pause.
-Placed tiles have a border in the owner's colour; a controlled castle shows its icon and a ring in the owner's colour.
+Placed tiles are filled with the owner's colour with a black border and a white icon (dark on yellow tiles); a controlled castle shows its icon in the owner's colour with a black outline.
 Not modelled: the 32 neutral tiles of the 2-player game and the castle tie-break for the winner (a tie is shared).
 
 Food facilities go on empty or food spaces, energy facilities on empty or energy spaces, settlement tiles on settlement spaces; one tile per space.
 A facility may go on a space of the other facility type only if no free empty space and no free space of its own type is left.
 The hovered space shows a preview, or a red outline if the tile is not allowed there.
-Placed tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt, settlement `#b0302a` red with 1–4 houses (its settlement symbols).
+Placed tiles are drawn as smaller hexagons with an icon: food with leaf, energy with lightning bolt, settlement with 1–4 houses (its settlement symbols). The placement preview shows the tile in its kind colour: food `#2e6b1f` dark green, energy `#d9822b` orange, settlement `#b0302a` red.
 Space icons are drawn in a darker shade (55 %) of the space color.
 
 ### Scoring (`internal/board/score.go`)
@@ -86,15 +86,15 @@ Space kinds follow the Rebirth rules (Scotland and Ireland boards):
 
 | Character | Meaning | Color | Icon |
 |---|---|---|---|
-| `O` | empty space (no symbol): food or energy facility | `#c8d69a` pale green | – |
-| `F` | food space: food facility | `#6fb04a` green | leaf |
-| `E` | energy space: energy facility | `#e8c53a` yellow | lightning bolt |
-| `S` | settlement space | `#c0845a` brown | house |
-| `C` | castle space (no tiles) | `#707078` grey | battlements |
-| `K` | cathedral space (no tiles, Scotland) | `#8a5aa8` purple | cross |
-| `R` | round tower space (no tiles, Ireland) | `#d8a030` amber | tower |
-| `s` | settlement space with harbor ("+1") | `#c0845a` brown | house + white plus `#ffffff` |
-| `o` / `f` / `e` | empty / food / energy space with wind collector ("+1") | as `O` / `F` / `E` | white plus `#ffffff` |
+| `O` | empty space (no symbol): food or energy facility | `#d6e0a8` light green | – |
+| `F` | food space: food facility | `#96c878` green | leaf |
+| `E` | energy space: energy facility | `#ecd57a` light yellow | lightning bolt |
+| `S` | settlement space | `#d4a682` tan | house |
+| `C` | castle space (no tiles) | `#a4a4ae` grey | battlements |
+| `K` | cathedral space (no tiles, Scotland) | `#b89ad0` lilac | cross |
+| `R` | round tower space (no tiles, Ireland) | `#8fc8c0` teal | tower |
+| `s` | settlement space with harbor ("+1") | `#d4a682` tan | house + dark plus `#404040` |
+| `o` / `f` / `e` | empty / food / energy space with wind collector ("+1") | as `O` / `F` / `E` | dark plus `#404040` |
 | `.` / space | no space (water / off-board) | sea background `#2b5d8a` | – |
 
 ### Settlements

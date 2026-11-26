@@ -16,16 +16,17 @@ import (
 var (
 	Background       = color.RGBA{0x2b, 0x5d, 0x8a, 0xff} // sea
 	borderCol        = color.RGBA{0x20, 0x20, 0x20, 0xff}
-	bonusCol         = color.RGBA{0xff, 0xff, 0xff, 0xff} // "+1" marker
+	bonusCol         = color.RGBA{0x40, 0x40, 0x40, 0xff} // "+1" marker
 	settlementBorder = color.RGBA{0xff, 0xff, 0xff, 0xff}
-	kindCol          = map[board.Kind]color.RGBA{
-		board.Empty:      {0xc8, 0xd6, 0x9a, 0xff},
-		board.Food:       {0x6f, 0xb0, 0x4a, 0xff},
-		board.Energy:     {0xe8, 0xc5, 0x3a, 0xff},
-		board.Settlement: {0xc0, 0x84, 0x5a, 0xff},
-		board.Castle:     {0x70, 0x70, 0x78, 0xff},
-		board.Cathedral:  {0x8a, 0x5a, 0xa8, 0xff},
-		board.RoundTower: {0xd8, 0xa0, 0x30, 0xff},
+	// kindCol are moderately saturated tones so the saturated player colours stand out.
+	kindCol = map[board.Kind]color.RGBA{
+		board.Empty:      {0xd6, 0xe0, 0xa8, 0xff},
+		board.Food:       {0x96, 0xc8, 0x78, 0xff},
+		board.Energy:     {0xec, 0xd5, 0x7a, 0xff},
+		board.Settlement: {0xd4, 0xa6, 0x82, 0xff},
+		board.Castle:     {0xa4, 0xa4, 0xae, 0xff},
+		board.Cathedral:  {0xb8, 0x9a, 0xd0, 0xff},
+		board.RoundTower: {0x8f, 0xc8, 0xc0, 0xff},
 	}
 	pieceCol = map[board.Piece]color.RGBA{
 		board.FoodFacility:   {0x2e, 0x6b, 0x1f, 0xff},
@@ -36,18 +37,21 @@ var (
 	iconOnPiece = color.RGBA{0xff, 0xff, 0xff, 0xff}
 
 	// PlayerColors are the player colours (index = player), shown as the
-	// border of placed tiles and as the icon of controlled castles.
+	// fill of placed tiles and as the icon of controlled castles.
 	PlayerColors = []color.RGBA{
-		{0x1e, 0x64, 0xff, 0xff}, // blue
-		{0xff, 0x4f, 0xd8, 0xff}, // pink
-		{0x10, 0x10, 0x10, 0xff}, // black
-		{0xf2, 0xf2, 0xf2, 0xff}, // white
+		{0x1d, 0x4e, 0xd8, 0xff}, // blue
+		{0xdc, 0x26, 0x26, 0xff}, // red
+		{0xf5, 0xb0, 0x00, 0xff}, // yellow
+		{0x15, 0x80, 0x3d, 0xff}, // green
 	}
-	PlayerColorNames = []string{"blue", "pink", "black", "white"}
+	PlayerColorNames = []string{"blue", "red", "yellow", "green"}
 )
 
 // pieceScale is the size of a placed tile relative to its space.
 const pieceScale = 0.7
+
+// castleIconScale is the half-size of the castle icon relative to its space.
+const castleIconScale = 0.6
 
 // FitLayout computes a layout that fits the board centered into w×h pixels.
 func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
@@ -69,7 +73,7 @@ func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
 }
 
 // DrawBoard draws all tiles as filled hexagons with a border. Settlement
-// spaces are drawn last so their white edges stay on top.
+// spaces are drawn last so their edges stay on top.
 func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 	for _, settlements := range []bool{false, true} {
 		for h, t := range b.Tiles {
@@ -85,23 +89,33 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			cx, cy, sz := float32(x), float32(y), float32(l.Size)
 			switch {
 			case t.Piece != board.NoPiece:
-				drawHex(dst, l, h, pieceScale, pieceCol[t.Piece], borderCol)
-				strokeHex(dst, l, h, pieceScale-0.04, PlayerColors[t.Owner], 2)
+				// Placed tiles are filled with the owner's colour.
+				pc := PlayerColors[t.Owner]
+				drawHex(dst, l, h, pieceScale, pc, borderCol)
+				ic := iconOnPiece
+				if isLight(pc) {
+					ic = borderCol // a white icon is hard to see on a light tile
+				}
 				if t.Piece == board.SettlementTile {
-					drawHouses(dst, t.Houses, cx, cy, 0.35*sz, iconOnPiece)
+					drawHouses(dst, t.Houses, cx, cy, 0.35*sz, ic)
 				} else {
-					drawPieceIcon(dst, t.Piece, cx, cy, 0.35*sz, iconOnPiece)
+					drawPieceIcon(dst, t.Piece, cx, cy, 0.35*sz, ic)
 				}
 			case t.Bonus != board.NoBonus:
 				drawKindIcon(dst, t.Kind, cx, cy+0.15*sz, 0.4*sz, darker(kindCol[t.Kind]))
 				drawPlus(dst, cx, cy-0.55*sz, 0.15*sz, bonusCol)
 			default:
-				ic := darker(kindCol[t.Kind])
-				if p, ok := b.CastleOwner(h); ok && t.Kind == board.Castle {
-					ic = PlayerColors[p]
-					strokeHex(dst, l, h, 0.8, ic, 2)
+				is := 0.45 * sz
+				if t.Kind == board.Castle {
+					is = castleIconScale * sz
 				}
-				drawKindIcon(dst, t.Kind, cx, cy, 0.45*sz, ic)
+				if p, ok := b.CastleOwner(h); ok && t.Kind == board.Castle {
+					// Controlled castle: icon in the owner's colour with a black outline.
+					drawKindIcon(dst, t.Kind, cx, cy, is, PlayerColors[p])
+					outlinePoly(dst, castleIcon, cx, cy, is, borderCol, float32(lineWidth(l, 1)))
+					break
+				}
+				drawKindIcon(dst, t.Kind, cx, cy, is, darker(kindCol[t.Kind]))
 			}
 		}
 	}
@@ -130,13 +144,13 @@ func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, scale float64, fill,
 	strokePath(dst, l, p, border, 1)
 }
 
-// strokeHex draws only the border of hexagon h, width times the normal width.
-func strokeHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, scale float64, c color.Color, width float64) {
-	strokePath(dst, l, hexPath(l, h, scale), c, width)
+// lineWidth is the pixel width of a line width times the normal width.
+func lineWidth(l layout.Layout, width float64) float64 {
+	return width * math.Max(1, l.Size/15)
 }
 
 func strokePath(dst *ebiten.Image, l layout.Layout, p *vector.Path, c color.Color, width float64) {
-	so := &vector.StrokeOptions{Width: float32(width * math.Max(1, l.Size/15)), LineJoin: vector.LineJoinRound}
+	so := &vector.StrokeOptions{Width: float32(lineWidth(l, width)), LineJoin: vector.LineJoinRound}
 	do := &vector.DrawPathOptions{AntiAlias: true}
 	do.ColorScale.ScaleWithColor(c)
 	vector.StrokePath(dst, p, so, do)
