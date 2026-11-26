@@ -17,7 +17,7 @@ var (
 	Background = color.RGBA{0x2b, 0x5d, 0x8a, 0xff} // sea
 	borderCol  = color.RGBA{0x20, 0x20, 0x20, 0xff}
 	bonusCol   = color.RGBA{0xff, 0xff, 0xff, 0xff} // "+1" marker
-	frameCol   = color.RGBA{0x5a, 0x2e, 0x12, 0xff} // settlement frame lines
+	frameCol   = color.RGBA{0xff, 0xff, 0xff, 0xff} // settlement outline
 	kindCol    = map[board.Kind]color.RGBA{
 		board.Empty:      {0xc8, 0xd6, 0x9a, 0xff},
 		board.Food:       {0x6f, 0xb0, 0x4a, 0xff},
@@ -56,25 +56,31 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			x, y := l.HexToPixel(h)
 			vector.DrawFilledCircle(dst, float32(x), float32(y), float32(l.Size/4), bonusCol, true)
 		}
+	}
+	// Second pass so neighboring hexes cannot paint over the outlines.
+	for h, t := range b.Tiles {
 		if t.Area != nil {
 			drawFrame(dst, l, h, t.Area)
 		}
 	}
 }
 
-// drawFrame draws the settlement frame on the outer edges of h: one line per
-// settlement space (single frame = small, double = medium, ...).
+// drawFrame draws the edges of h that lie on the outline of its settlement
+// in white, so each settlement shows as one framed area.
 func drawFrame(dst *ebiten.Image, l layout.Layout, h hex.Hex, a *board.SettlementArea) {
-	w := float32(math.Max(1, l.Size/20))
+	var p vector.Path
 	for dir := 0; dir < 6; dir++ {
 		if a.Contains(h.Neighbor(dir)) {
 			continue
 		}
-		for i := 0; i < a.Size(); i++ {
-			p, q := l.Edge(h, dir, 0.88-0.1*float64(i))
-			vector.StrokeLine(dst, float32(p[0]), float32(p[1]), float32(q[0]), float32(q[1]), w, frameCol, true)
-		}
+		e0, e1 := l.Edge(h, dir, 1)
+		p.MoveTo(float32(e0[0]), float32(e0[1]))
+		p.LineTo(float32(e1[0]), float32(e1[1]))
 	}
+	so := &vector.StrokeOptions{Width: float32(math.Max(2, l.Size/8)), LineCap: vector.LineCapRound}
+	do := &vector.DrawPathOptions{AntiAlias: true}
+	do.ColorScale.ScaleWithColor(frameCol)
+	vector.StrokePath(dst, &p, so, do)
 }
 
 func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, fill color.Color) {

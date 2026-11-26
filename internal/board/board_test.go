@@ -29,7 +29,7 @@ func TestParseInvalid(t *testing.T) {
 }
 
 func TestParseKinds(t *testing.T) {
-	b, err := Parse("x", "OFESCKR\nfs\n---\n...a\n.b")
+	b, err := Parse("x", "OFESCKR\nFs\n---\n...a\n.b")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,9 +42,11 @@ func TestParseKinds(t *testing.T) {
 	if got := b.Tiles[hex.FromOffset(1, 1)]; got.Kind != Settlement || !got.Bonus {
 		t.Errorf("harbour: got %+v", got)
 	}
-	// "+1" only on buildable spaces.
-	if _, err := Parse("x", "c"); err == nil {
-		t.Fatal("expected error for bonus castle")
+	// "+1" only on settlement spaces.
+	for _, m := range []string{"o", "f", "e", "c", "k", "r"} {
+		if _, err := Parse("x", m); err == nil {
+			t.Errorf("expected error for %q", m)
+		}
 	}
 }
 

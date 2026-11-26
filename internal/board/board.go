@@ -27,8 +27,8 @@ const (
 // Buildable reports whether player tiles can be placed on this kind of space.
 func (k Kind) Buildable() bool { return k <= Settlement }
 
-// kindChars maps map characters to space kinds. Lowercase letters of
-// buildable kinds additionally mark a "+1" space (harbour / wind collector).
+// kindChars maps map characters to space kinds. Lowercase 's' marks a
+// settlement space with "+1" (harbour / wind collector).
 var kindChars = map[rune]Kind{
 	'O': Empty, 'F': Food, 'E': Energy, 'S': Settlement,
 	'C': Castle, 'K': Cathedral, 'R': RoundTower,
@@ -37,7 +37,7 @@ var kindChars = map[rune]Kind{
 // Tile is a board space. Water is not modelled: no entry means no space.
 type Tile struct {
 	Kind  Kind
-	Bonus bool            // "+1" space: harbour (Scotland) or wind collector (Ireland)
+	Bonus bool            // "+1" settlement space: harbour (Scotland) or wind collector (Ireland)
 	Area  *SettlementArea // framed settlement this space belongs to; nil unless Kind == Settlement
 }
 
@@ -83,8 +83,8 @@ func parseChar(c rune) (*Tile, bool) {
 	if k, ok := kindChars[c]; ok {
 		return &Tile{Kind: k}, true
 	}
-	if k, ok := kindChars[unicode.ToUpper(c)]; ok && unicode.IsLower(c) && k.Buildable() {
-		return &Tile{Kind: k, Bonus: true}, true
+	if c == 's' {
+		return &Tile{Kind: Settlement, Bonus: true}, true
 	}
 	return nil, false
 }
