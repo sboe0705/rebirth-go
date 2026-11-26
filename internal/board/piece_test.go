@@ -2,6 +2,7 @@ package board
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
@@ -80,5 +81,17 @@ func TestFacilityFallback(t *testing.T) {
 	}
 	if b.CanPlaceAnywhere(SettlementTile) {
 		t.Error("no settlement space left")
+	}
+}
+
+func TestFreeSpaces(t *testing.T) {
+	b, err := Parse("t", "OSE\nFOC")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := b.FreeSpaces(FoodFacility)
+	want := []hex.Hex{hex.FromOffset(0, 0), hex.FromOffset(0, 1), hex.FromOffset(1, 1)}
+	if !slices.Equal(got, want) {
+		t.Errorf("FreeSpaces = %v, want %v", got, want)
 	}
 }

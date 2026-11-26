@@ -1,7 +1,7 @@
 # rebirth-go
 
 PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
-Current state: single-player game: tiles are drawn at random from a shuffled supply and placed on the board, with scoring.
+Current state: 1–4 players – you against up to 3 computer players that place their tiles at random. Tiles are drawn at random from shuffled supplies, with scoring.
 
 ## Requirements
 
@@ -17,7 +17,8 @@ Current state: single-player game: tiles are drawn at random from a shuffled sup
 
 ```sh
 go run ./cmd/rebirth                 # new random map on every start
-go run ./cmd/rebirth -seed 42        # reproduce a random map and tile order (seed is shown in the window title)
+go run ./cmd/rebirth -seed 42        # reproduce a random map, tile order and computer moves (seed is shown in the window title)
+go run ./cmd/rebirth -players 3      # you + 2 computer players (default: choose 1-4 on the start screen)
 go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g. -map example
 
 ./scripts/build.sh                   # vet + test + Linux and Windows builds into bin/
@@ -29,16 +30,25 @@ go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g
 
 | Input | Action |
 |---|---|
-| Left click | place the next tile (shown top left) on the space |
+| 1–4 (start screen) | number of players: you + computer players |
+| Left click | on your turn: place your tile (shown top left) on the space |
 | Resize / maximize window | the board is refitted to the window |
 
 ### Tiles (`internal/board/supply.go`)
 
-The player has one colour set of 36 tiles: 12 food facilities, 12 energy facilities and 3 settlement tiles each with 1, 2, 3 and 4 houses.
-At the start the set is shuffled and 2 tiles are set aside unused; the other 34 form the supply.
-The next tile is drawn at random from the supply and must be placed before the following one is drawn.
-A drawn tile that fits nowhere on the board is discarded (the rules don't cover this).
-The game ends when the supply is empty; the points shown then are the final score.
+Each player has one colour set of 36 tiles: 12 food facilities, 12 energy facilities and 3 settlement tiles each with 1, 2, 3 and 4 houses.
+With 4 players each set loses 3 food, 3 energy and one settlement tile each with 2, 3 and 4 houses (27 tiles).
+At the start each set is shuffled and 2 tiles are set aside unused; the rest form the player's supply.
+Each player holds one tile drawn at random from their supply and draws the next one after placing it.
+A tile that fits nowhere on the board when it is the player's turn is discarded (the rules don't cover this).
+The game ends when all supplies are empty; the points shown then are the final score.
+
+### Players (`cmd/rebirth/main.go`)
+
+You are player 1 (blue) and start; computer players (pink, black, white) follow in turn order.
+A computer player places its tile on a random allowed space after a short pause.
+Placed tiles have a border in the owner's colour; a controlled castle shows its icon and a ring in the owner's colour.
+Not modelled: the 32 neutral tiles of the 2-player game and the castle tie-break for the winner (a tie is shared).
 
 Food facilities go on empty or food spaces, energy facilities on empty or energy spaces, settlement tiles on settlement spaces; one tile per space.
 A facility may go on a space of the other facility type only if no free empty space and no free space of its own type is left.
@@ -46,17 +56,21 @@ The hovered space shows a preview, or a red outline if the tile is not allowed t
 Placed tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt, settlement `#b0302a` red with 1–4 houses (its settlement symbols).
 Space icons are drawn in a darker shade (55 %) of the space color.
 
-### Scoring (single player, `internal/board/score.go`)
+### Scoring (`internal/board/score.go`)
 
-The top left shows the points as if the game ended now:
-- **placed** – scored when placing: a facility scores the size of its group (adjacent tiles of the same type),
-  a harbor or wind collector scores 1, a completed settlement scores small = houses, medium 5+3, large 8+5, extra-large 12+8+5.
-- **castles** – 5 per castle with at least one adjacent tile (no opponents, so no majority yet).
-- **open settlements** – houses on tiles in incomplete settlements.
+The top left shows each player's points as if the game ended now:
+- **placed** – scored when placing: a facility scores the size of its group (adjacent tiles of the same type and colour),
+  a harbor or wind collector scores 1.
+  A completed settlement ranks the players by their houses in it: medium 5/3, large 8/5, extra-large 12/8/5;
+  a small settlement scores its houses for the player who placed it. On a tie the completing player loses,
+  the other ties go by turn order after the completing player. A player alone in a settlement gets all ranks (medium 8, large 13, extra-large 25).
+- **castles** – 5 per controlled castle. The first adjacent tile controls a castle; a player takes it over with the most adjacent tiles,
+  or when tied for most with the most adjacent facilities among the tied players; otherwise it stays.
+- **open settlements** – houses on the player's tiles in incomplete settlements.
 
 The line below explains the most recent placement, e.g.
-`Last placement: +9 = 1 (harbor) + 8 (medium settlement completed)` or
-`Last placement: +3 (food facility group of 3); castle controlled (5 at game end)`.
+`Last placement: You +9 = 1 (harbor) + 8 (medium settlement completed)` or
+`Last placement: Computer 1 +1 (food facility group of 1), castle taken over (5 at game end); You +0, castle lost`.
 
 Not scored: cathedral mission cards, round tower bonuses.
 
@@ -109,7 +123,7 @@ The same seed always gives the same map.
 ## Structure
 
 ```
-cmd/rebirth/        entry point, ebiten.Game
+cmd/rebirth/        entry point, ebiten.Game, turns and computer players
 internal/hex/       axial coordinates, neighbors, distance, rounding (no pixels)
 internal/layout/    hex <-> pixel (pointy-top), corner points
 internal/board/     Tile/Board model, map loader, embedded maps

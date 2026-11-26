@@ -34,6 +34,16 @@ var (
 	}
 	invalidCol  = color.RGBA{0xe0, 0x30, 0x30, 0xff}
 	iconOnPiece = color.RGBA{0xff, 0xff, 0xff, 0xff}
+
+	// PlayerColors are the player colours (index = player), shown as the
+	// border of placed tiles and as the icon of controlled castles.
+	PlayerColors = []color.RGBA{
+		{0x1e, 0x64, 0xff, 0xff}, // blue
+		{0xff, 0x4f, 0xd8, 0xff}, // pink
+		{0x10, 0x10, 0x10, 0xff}, // black
+		{0xf2, 0xf2, 0xf2, 0xff}, // white
+	}
+	PlayerColorNames = []string{"blue", "pink", "black", "white"}
 )
 
 // pieceScale is the size of a placed tile relative to its space.
@@ -76,6 +86,7 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			switch {
 			case t.Piece != board.NoPiece:
 				drawHex(dst, l, h, pieceScale, pieceCol[t.Piece], borderCol)
+				strokeHex(dst, l, h, pieceScale-0.04, PlayerColors[t.Owner], 2)
 				if t.Piece == board.SettlementTile {
 					drawHouses(dst, t.Houses, cx, cy, 0.35*sz, iconOnPiece)
 				} else {
@@ -85,7 +96,12 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 				drawKindIcon(dst, t.Kind, cx, cy+0.15*sz, 0.4*sz, darker(kindCol[t.Kind]))
 				drawPlus(dst, cx, cy-0.55*sz, 0.15*sz, bonusCol)
 			default:
-				drawKindIcon(dst, t.Kind, cx, cy, 0.45*sz, darker(kindCol[t.Kind]))
+				ic := darker(kindCol[t.Kind])
+				if p, ok := b.CastleOwner(h); ok && t.Kind == board.Castle {
+					ic = PlayerColors[p]
+					strokeHex(dst, l, h, 0.8, ic, 2)
+				}
+				drawKindIcon(dst, t.Kind, cx, cy, 0.45*sz, ic)
 			}
 		}
 	}
@@ -105,6 +121,28 @@ func DrawHover(dst *ebiten.Image, l layout.Layout, h hex.Hex, f board.Piece, ok 
 
 // drawHex draws hexagon h scaled around its center; a nil fill draws only the border.
 func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, scale float64, fill, border color.Color) {
+	p := hexPath(l, h, scale)
+	if fill != nil {
+		do := &vector.DrawPathOptions{AntiAlias: true}
+		do.ColorScale.ScaleWithColor(fill)
+		vector.FillPath(dst, p, &vector.FillOptions{}, do)
+	}
+	strokePath(dst, l, p, border, 1)
+}
+
+// strokeHex draws only the border of hexagon h, width times the normal width.
+func strokeHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, scale float64, c color.Color, width float64) {
+	strokePath(dst, l, hexPath(l, h, scale), c, width)
+}
+
+func strokePath(dst *ebiten.Image, l layout.Layout, p *vector.Path, c color.Color, width float64) {
+	so := &vector.StrokeOptions{Width: float32(width * math.Max(1, l.Size/15)), LineJoin: vector.LineJoinRound}
+	do := &vector.DrawPathOptions{AntiAlias: true}
+	do.ColorScale.ScaleWithColor(c)
+	vector.StrokePath(dst, p, so, do)
+}
+
+func hexPath(l layout.Layout, h hex.Hex, scale float64) *vector.Path {
 	cx, cy := l.HexToPixel(h)
 	var p vector.Path
 	for i, c := range l.Corners(h) {
@@ -116,15 +154,5 @@ func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, scale float64, fill,
 		}
 	}
 	p.Close()
-
-	if fill != nil {
-		do := &vector.DrawPathOptions{AntiAlias: true}
-		do.ColorScale.ScaleWithColor(fill)
-		vector.FillPath(dst, &p, &vector.FillOptions{}, do)
-	}
-
-	so := &vector.StrokeOptions{Width: float32(math.Max(1, l.Size/15)), LineJoin: vector.LineJoinRound}
-	do := &vector.DrawPathOptions{AntiAlias: true}
-	do.ColorScale.ScaleWithColor(border)
-	vector.StrokePath(dst, &p, so, do)
+	return &p
 }

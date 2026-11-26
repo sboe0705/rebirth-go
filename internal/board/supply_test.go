@@ -63,3 +63,16 @@ func TestChipString(t *testing.T) {
 		}
 	}
 }
+
+func TestChipSetFor4(t *testing.T) {
+	n := map[Chip]int{}
+	for _, c := range ChipSetFor(4) {
+		n[c]++
+	}
+	if len(ChipSetFor(4)) != 27 || n[Chip{FoodFacility, 0}] != 9 || n[Chip{SettlementTile, 1}] != 3 || n[Chip{SettlementTile, 4}] != 2 {
+		t.Errorf("4-player set: %v", n)
+	}
+	if len(ChipSetFor(3)) != 36 || NewSupplyFor(1, 4).Len() != 27-SetAside {
+		t.Error("wrong set sizes")
+	}
+}

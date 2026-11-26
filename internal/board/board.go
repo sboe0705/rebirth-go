@@ -60,6 +60,7 @@ type Tile struct {
 
 	Piece  Piece // placed tile, NoPiece if none
 	Houses int   // settlement symbols on a placed settlement tile
+	Owner  int   // player (0-based) who placed Piece
 }
 
 // MaxSettlementSize is the largest settlement: the extra-large one in Ireland.
@@ -94,8 +95,13 @@ type Board struct {
 	Tiles       map[hex.Hex]*Tile
 	Settlements []*SettlementArea
 
-	points    int    // points scored while placing tiles, see Score
-	lastGains []Gain // how the most recent placement scored
+	// Players is the number of players (turn order 0, 1, ...); 0 counts as 1.
+	// It decides ties when a settlement is completed.
+	Players int
+
+	points    map[int]int     // points per player scored while placing tiles, see Score
+	castles   map[hex.Hex]int // controlling player per castle space
+	lastGains []Gain          // how the most recent placement scored
 }
 
 //go:embed maps/*.txt

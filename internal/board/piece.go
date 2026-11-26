@@ -2,6 +2,7 @@ package board
 
 import (
 	"errors"
+	"slices"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
 )
@@ -88,24 +89,47 @@ func (b *Board) CanPlaceAnywhere(f Piece) bool {
 	return false
 }
 
-// Place puts piece f at h if allowed and scores it; a settlement tile has 1 house.
+// Place puts piece f for player 0 at h if allowed and scores it;
+// a settlement tile has 1 house.
 func (b *Board) Place(h hex.Hex, f Piece) error {
 	houses := 0
 	if f == SettlementTile {
 		houses = 1
 	}
-	return b.PlaceChip(h, Chip{f, houses})
+	return b.PlaceChip(h, Chip{f, houses}, 0)
 }
 
-// PlaceChip puts chip c at h if allowed and scores it.
-func (b *Board) PlaceChip(h hex.Hex, c Chip) error {
+// PlaceChip puts chip c of player p at h if allowed and scores it.
+func (b *Board) PlaceChip(h hex.Hex, c Chip, p int) error {
 	if err := b.CanPlace(h, c.Piece); err != nil {
 		return err
 	}
-	b.Tiles[h].Piece, b.Tiles[h].Houses = c.Piece, c.Houses
+	t := b.Tiles[h]
+	t.Piece, t.Houses, t.Owner = c.Piece, c.Houses, p
 	b.lastGains = b.placeGains(h)
+	if b.points == nil {
+		b.points = map[int]int{}
+	}
 	for _, g := range b.lastGains {
-		b.points += g.Points
+		b.points[g.Player] += g.Points
 	}
 	return nil
+}
+
+// FreeSpaces returns all spaces where piece f can be placed, in a fixed
+// order (by r, then q) so random choices are reproducible.
+func (b *Board) FreeSpaces(f Piece) []hex.Hex {
+	var s []hex.Hex
+	for h := range b.Tiles {
+		if b.CanPlace(h, f) == nil {
+			s = append(s, h)
+		}
+	}
+	slices.SortFunc(s, func(a, c hex.Hex) int {
+		if a.R != c.R {
+			return a.R - c.R
+		}
+		return a.Q - c.Q
+	})
+	return s
 }

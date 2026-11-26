@@ -46,10 +46,34 @@ type Supply struct {
 	Aside []Chip // drawn in setup, not used this game
 }
 
-// NewSupply shuffles a full chip set and sets SetAside tiles aside.
-func NewSupply(seed uint64) *Supply {
-	rng := rand.New(rand.NewPCG(seed, seed^0x5851f42d4c957f2d))
+// ChipSetFor returns the tiles of one colour used with the given number of
+// players: with 4 players 3 food, 3 energy and one settlement tile each with
+// 2, 3 and 4 houses are removed (SCO p. 2), leaving 27.
+func ChipSetFor(players int) []Chip {
 	c := ChipSet()
+	if players < 4 {
+		return c
+	}
+	remove := map[Chip]int{{FoodFacility, 0}: 3, {EnergyFacility, 0}: 3,
+		{SettlementTile, 2}: 1, {SettlementTile, 3}: 1, {SettlementTile, 4}: 1}
+	var s []Chip
+	for _, x := range c {
+		if remove[x] > 0 {
+			remove[x]--
+			continue
+		}
+		s = append(s, x)
+	}
+	return s
+}
+
+// NewSupply shuffles a full chip set and sets SetAside tiles aside.
+func NewSupply(seed uint64) *Supply { return NewSupplyFor(seed, 1) }
+
+// NewSupplyFor is NewSupply with the chip set for the given number of players.
+func NewSupplyFor(seed uint64, players int) *Supply {
+	rng := rand.New(rand.NewPCG(seed, seed^0x5851f42d4c957f2d))
+	c := ChipSetFor(players)
 	rng.Shuffle(len(c), func(i, j int) { c[i], c[j] = c[j], c[i] })
 	return &Supply{chips: c[SetAside:], Aside: c[:SetAside]}
 }
