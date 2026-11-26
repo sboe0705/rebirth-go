@@ -46,7 +46,20 @@ Space kinds follow the Rebirth rules (Scotland and Ireland boards):
 | `o` `f` `e` `s` | same as uppercase, plus "+1" (harbour in Scotland, wind collector in Ireland) | color of the uppercase kind + white dot `#ffffff` |
 | `.` / space | no space (water / off-board) | sea background `#2b5d8a` |
 
-Not yet modelled: settlement frames (which settlement spaces form one small/medium/large settlement), castle/cathedral names, 2-player blocked spaces.
+### Settlement frames
+
+A line `---` starts a second grid of the same shape that assigns every settlement space (`S`/`s`) to a settlement:
+a letter or digit as label, spaces with the same label form one settlement. Other cells may be `.`, space or the map character itself.
+Size = number of spaces: 1 small, 2 medium, 3 large, 4 extra-large (Ireland). Spaces of a settlement must be contiguous.
+The renderer draws one frame line (`#5a2e12`) per space, like the single/double/triple frames on the board.
+
+```
+..SS.S
+---
+..aa.b
+```
+
+Not yet modelled: castle/cathedral names, 2-player blocked spaces.
 
 New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go`.
 

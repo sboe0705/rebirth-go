@@ -29,7 +29,7 @@ func TestParseInvalid(t *testing.T) {
 }
 
 func TestParseKinds(t *testing.T) {
-	b, err := Parse("x", "OFESCKR\nfs")
+	b, err := Parse("x", "OFESCKR\nfs\n---\n...a\n.b")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,5 +45,41 @@ func TestParseKinds(t *testing.T) {
 	// "+1" only on buildable spaces.
 	if _, err := Parse("x", "c"); err == nil {
 		t.Fatal("expected error for bonus castle")
+	}
+}
+
+func TestSettlementAreas(t *testing.T) {
+	b, err := Parse("x", "SSS.S\nSS\n---\naab.c\nbb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sizes := []int{}
+	for _, a := range b.Settlements {
+		sizes = append(sizes, a.Size())
+	}
+	if len(sizes) != 3 || sizes[0] != 2 || sizes[1] != 3 || sizes[2] != 1 {
+		t.Fatalf("got sizes %v, want [2 3 1]", sizes)
+	}
+	if b.Tiles[hex.FromOffset(0, 0)].Area != b.Tiles[hex.FromOffset(1, 0)].Area {
+		t.Fatal("a spaces not in the same area")
+	}
+}
+
+func TestSettlementAreaErrors(t *testing.T) {
+	for _, m := range []string{
+		"SS",                // missing labels
+		"SS\n---\naa\n---",  // two sections
+		"SF\n---\naa",       // label on a food space
+		"S.S\n---\na.a",     // not contiguous
+		"SSSSS\n---\naaaaa", // too large
+		"S\n---\n*",         // invalid label
+	} {
+		if _, err := Parse("x", m); err == nil {
+			t.Errorf("expected error for %q", m)
+		}
+	}
+	// The map character itself is allowed in the settlement grid.
+	if _, err := Parse("x", "FS\n---\nFa"); err != nil {
+		t.Fatal(err)
 	}
 }

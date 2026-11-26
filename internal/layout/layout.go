@@ -37,3 +37,15 @@ func (l Layout) Corners(h hex.Hex) [6][2]float64 {
 	}
 	return c
 }
+
+// Edge returns the two end points of the hexagon edge facing neighbor
+// direction dir (see hex.Directions), with the corners scaled towards the
+// hexagon center by scale (1 = outline).
+func (l Layout) Edge(h hex.Hex, dir int, scale float64) (a, b [2]float64) {
+	cx, cy := l.HexToPixel(h)
+	c := l.Corners(h)
+	p := func(i int) [2]float64 {
+		return [2]float64{cx + scale*(c[i][0]-cx), cy + scale*(c[i][1]-cy)}
+	}
+	return p((5 - dir + 6) % 6), p((6 - dir) % 6)
+}
