@@ -115,7 +115,7 @@ Map rules (checked when loading and for random maps; all violations are reported
 - settlements have at most 4 spaces,
 - harbors and wind collectors are only at the coast (space next to water),
 - harbors only on settlement spaces, at most one per settlement; wind collectors never on settlement spaces,
-- castles, cathedrals and round towers (`C`/`K`/`R`) are never adjacent to each other.
+- castles, cathedrals and round towers (`C`/`K`/`R`) are never adjacent to each other, except a castle next to a cathedral.
 
 Not yet modelled: castle/cathedral names, 2-player blocked spaces.
 

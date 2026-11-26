@@ -100,15 +100,15 @@ func TestSettlementAreas(t *testing.T) {
 }
 
 func TestParseRuleViolations(t *testing.T) {
-	// castle next to cathedral (row 0, col 1/2) and an inland wind collector
-	b, err := Parse("t", "OCKO\nOOfOO\nOOOO")
+	// two adjacent castles (row 0, col 1/2) and an inland wind collector
+	b, err := Parse("t", "OCCO\nOOfOO\nOOOO")
 	if err == nil {
 		t.Fatal("expected error")
 	}
 	if b == nil || len(b.Tiles) != 13 {
 		t.Fatalf("board not returned with the rule error: %v", b)
 	}
-	want := "t: castle at row 0, col 1 and cathedral at row 0, col 2 are adjacent\nwind collector at row 1, col 2 is not at the coast"
+	want := "t: castle at row 0, col 1 and castle at row 0, col 2 are adjacent\nwind collector at row 1, col 2 is not at the coast"
 	if err.Error() != want {
 		t.Fatalf("got %q, want %q", err, want)
 	}
@@ -118,13 +118,13 @@ func TestParseRuleViolations(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	for _, m := range []string{"CK", "OR\nC", "ss", "sS\n.s",
+	for _, m := range []string{"CC", "KK", "RC", "KR", "OR\nC", "ss", "sS\n.s",
 		"OOO\nOsO\nOOO", "OOO\nOfO\nOOO"} { // harbor / wind collector inland
 		if _, err := Parse("t", m); err == nil {
 			t.Errorf("%q: expected error", m)
 		}
 	}
-	for _, m := range []string{"COK", "sOs", "sS", "sSf", "OOO\nOSO\nOOO"} {
+	for _, m := range []string{"COK", "CK", "KC", "OK\nC", "sOs", "sS", "sSf", "OOO\nOSO\nOOO"} {
 		if _, err := Parse("t", m); err != nil {
 			t.Errorf("%q: %v", m, err)
 		}

@@ -191,7 +191,8 @@ func Parse(name, text string) (*Board, error) {
 
 // validate checks the map rules and reports every violation: settlements
 // have at most MaxSettlementSize spaces; castles, cathedrals and round towers
-// are never adjacent to each other; harbors and wind collectors are at the
+// are never adjacent to each other, except a castle next to a cathedral;
+// harbors and wind collectors are at the
 // coast, harbors only on settlement spaces (at most one per settlement),
 // wind collectors never on settlement spaces.
 func (b *Board) validate() error {
@@ -209,7 +210,7 @@ func (b *Board) validate() error {
 		}
 		for _, n := range h.Neighbors() {
 			// report each pair once, from the earlier space
-			if nt := b.Tiles[n]; nt != nil && !nt.Kind.Buildable() && less(h, n) {
+			if nt := b.Tiles[n]; nt != nil && !nt.Kind.Buildable() && !castleAndCathedral(t.Kind, nt.Kind) && less(h, n) {
 				errs = append(errs, fmt.Errorf("%v at %s and %v at %s are adjacent", t.Kind, Pos(h), nt.Kind, Pos(n)))
 			}
 		}
@@ -230,6 +231,12 @@ func (b *Board) validate() error {
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// castleAndCathedral reports whether a and b are a castle and a cathedral,
+// the only special spaces that may be adjacent.
+func castleAndCathedral(a, b Kind) bool {
+	return a == Castle && b == Cathedral || a == Cathedral && b == Castle
 }
 
 // Pos formats h as its row and column in a map file (both counted from 0,
