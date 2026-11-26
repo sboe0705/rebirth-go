@@ -16,8 +16,9 @@ Current state: hex board loaded from a map file; facilities and settlement tiles
 ## Run & build
 
 ```sh
-go run ./cmd/rebirth                 # default map "example"
-go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt
+go run ./cmd/rebirth                 # new random map on every start
+go run ./cmd/rebirth -seed 42        # reproduce a random map (seed is shown in the window title)
+go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g. -map example
 
 ./scripts/build.sh                   # vet + test + Linux and Windows builds into bin/
 ./scripts/build-linux.sh
@@ -67,6 +68,14 @@ Settlement spaces are drawn with white edges (`#ffffff`).
 Not yet modelled: castle/cathedral names, 2-player blocked spaces.
 
 New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go` and an icon in `internal/render/icons.go`.
+
+## Random maps
+
+`board.Random(seed, board.DefaultRandom)` (`internal/board/random.go`) builds a board of 100 spaces:
+a compact random shape, 4 castles and 3 cathedrals at least 3 spaces apart,
+8 settlements (sizes 1,1,1,2,2,2,3,3) that never touch each other, 3 "+1" settlement spaces
+(preferably at the coast), and the rest randomly empty, food or energy.
+The same seed always gives the same map.
 
 ## Structure
 

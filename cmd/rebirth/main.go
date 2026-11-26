@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand/v2"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -60,10 +61,20 @@ func (g *game) Draw(screen *ebiten.Image) {
 func (g *game) Layout(_, _ int) (int, int) { return screenW, screenH }
 
 func main() {
-	mapName := flag.String("map", "example", "name of the embedded map (internal/board/maps/<name>.txt)")
+	mapName := flag.String("map", "random", `"random" or name of an embedded map (internal/board/maps/<name>.txt)`)
+	seed := flag.Uint64("seed", 0, "seed for the random map (0 = new random seed)")
 	flag.Parse()
 
-	b, err := board.Load(*mapName)
+	var b *board.Board
+	var err error
+	if *mapName == "random" {
+		if *seed == 0 {
+			*seed = rand.Uint64()
+		}
+		b, err = board.Random(*seed, board.DefaultRandom)
+	} else {
+		b, err = board.Load(*mapName)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
