@@ -17,11 +17,12 @@ import (
 	"github.com/sboe0705/rebirth-go/internal/render"
 )
 
-const screenW, screenH = 1024, 768
+const screenW, screenH = 1024, 768 // initial window size
 
 type game struct {
 	board    *board.Board
 	layout   layout.Layout
+	w, h     int         // current screen size; the layout is refitted when it changes
 	selected board.Piece // piece placed by the next left click
 	hover    hex.Hex
 	msg      string
@@ -91,7 +92,14 @@ func lastPlacement(gains []board.Gain) string {
 	return s
 }
 
-func (g *game) Layout(_, _ int) (int, int) { return screenW, screenH }
+// Layout uses the full window (resizable / maximizable) and refits the board.
+func (g *game) Layout(w, h int) (int, int) {
+	if w != g.w || h != g.h {
+		g.w, g.h = w, h
+		g.layout = render.FitLayout(g.board, w, h, 20)
+	}
+	return w, h
+}
 
 func main() {
 	mapName := flag.String("map", "random", `"random" or name of an embedded map (internal/board/maps/<name>.txt)`)
@@ -112,8 +120,9 @@ func main() {
 		log.Fatal(err)
 	}
 	ebiten.SetWindowSize(screenW, screenH)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowTitle("rebirth-go – " + b.Name)
-	g := &game{board: b, layout: render.FitLayout(b, screenW, screenH, 20), selected: board.FoodFacility}
+	g := &game{board: b, selected: board.FoodFacility}
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

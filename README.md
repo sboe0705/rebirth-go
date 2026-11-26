@@ -30,6 +30,7 @@ go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g
 | Input | Action |
 |---|---|
 | Left click | place the selected tile on the space |
+| Resize / maximize window | the board is refitted to the window |
 | `F` / `E` / `S` / right click | select food facility / energy facility / settlement tile, right click cycles |
 
 Food facilities go on empty or food spaces, energy facilities on empty or energy spaces, settlement tiles on settlement spaces; one tile per space.
