@@ -6,7 +6,6 @@ import (
 	"embed"
 	"fmt"
 	"strings"
-	"unicode"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
 )
@@ -44,40 +43,15 @@ type Tile struct {
 // MaxSettlementSize is the largest settlement: the extra-large one in Ireland.
 const MaxSettlementSize = 4
 
-// SettlementArea is one framed settlement: 1 space = small, 2 = medium,
-// 3 = large, 4 = extra-large (Ireland). It is scored once all spaces are occupied.
+// SettlementArea is one settlement: a contiguous group of settlement spaces.
+// 1 space = small, 2 = medium, 3 = large, 4 = extra-large (Ireland).
+// It is scored once all spaces are occupied. Separate settlements never touch.
 type SettlementArea struct {
 	Spaces []hex.Hex
 }
 
-// Size returns the number of spaces (= number of frame lines on the board).
+// Size returns the number of spaces.
 func (a *SettlementArea) Size() int { return len(a.Spaces) }
-
-// Contains reports whether h belongs to this settlement.
-func (a *SettlementArea) Contains(h hex.Hex) bool {
-	for _, s := range a.Spaces {
-		if s == h {
-			return true
-		}
-	}
-	return false
-}
-
-func (a *SettlementArea) connected() bool {
-	seen := map[hex.Hex]bool{a.Spaces[0]: true}
-	stack := []hex.Hex{a.Spaces[0]}
-	for len(stack) > 0 {
-		h := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		for _, n := range h.Neighbors() {
-			if !seen[n] && a.Contains(n) {
-				seen[n] = true
-				stack = append(stack, n)
-			}
-		}
-	}
-	return len(seen) == len(a.Spaces)
-}
 
 func parseChar(c rune) (*Tile, bool) {
 	if k, ok := kindChars[c]; ok {
@@ -93,7 +67,7 @@ func parseChar(c rune) (*Tile, bool) {
 type Board struct {
 	Name        string
 	Tiles       map[hex.Hex]*Tile
-	Settlements []*SettlementArea // in order of first appearance in the map
+	Settlements []*SettlementArea
 }
 
 //go:embed maps/*.txt
@@ -111,33 +85,16 @@ func Load(name string) (*Board, error) {
 // Parse reads a map in text format: each line is a hex row
 // (odd-r offset: odd rows are shifted right by half a tile),
 // each character a column. '.' or ' ' = no tile, '#' at line start = comment.
-//
-// A line "---" starts the settlement section: a second grid of the same
-// shape in which every settlement space carries a label (letter or digit).
-// Spaces with the same label form one settlement (SCO p. 3, IRL p. 3).
-// Other cells may hold '.', ' ' or the map character itself.
+// Adjacent settlement spaces form one settlement.
 func Parse(name, text string) (*Board, error) {
 	b := &Board{Name: name, Tiles: map[hex.Hex]*Tile{}}
-	var grids [2][]string
-	part := 0
 	sc := bufio.NewScanner(strings.NewReader(text))
+	row := 0
 	for sc.Scan() {
 		line := sc.Text()
-		switch {
-		case strings.HasPrefix(line, "#"):
-		case strings.TrimSpace(line) == "---":
-			if part == 1 {
-				return nil, fmt.Errorf("%s: more than one settlement section", name)
-			}
-			part = 1
-		default:
-			grids[part] = append(grids[part], line)
+		if strings.HasPrefix(line, "#") {
+			continue
 		}
-	}
-	if err := sc.Err(); err != nil {
-		return nil, err
-	}
-	for row, line := range grids[0] {
 		for col, c := range []rune(line) {
 			if c == '.' || c == ' ' {
 				continue
@@ -148,56 +105,39 @@ func Parse(name, text string) (*Board, error) {
 			}
 			b.Tiles[hex.FromOffset(col, row)] = t
 		}
+		row++
 	}
-	if err := b.parseSettlements(grids[0], grids[1]); err != nil {
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	if err := b.groupSettlements(); err != nil {
 		return nil, fmt.Errorf("%s: %w", name, err)
 	}
 	return b, nil
 }
 
-func (b *Board) parseSettlements(mapRows, rows []string) error {
-	byLabel := map[rune]*SettlementArea{}
-	var order []rune
-	for row, line := range rows {
-		var mapLine []rune
-		if row < len(mapRows) {
-			mapLine = []rune(mapRows[row])
+// groupSettlements assigns each connected group of settlement spaces to one
+// SettlementArea (flood fill).
+func (b *Board) groupSettlements() error {
+	for start, t := range b.Tiles {
+		if t.Kind != Settlement || t.Area != nil {
+			continue
 		}
-		for col, c := range []rune(line) {
-			h := hex.FromOffset(col, row)
-			t := b.Tiles[h]
-			if t == nil || t.Kind != Settlement {
-				if c != '.' && c != ' ' && (col >= len(mapLine) || mapLine[col] != c) {
-					return fmt.Errorf("settlement label %q in row %d, column %d is not on a settlement space", c, row, col)
-				}
-				continue
-			}
-			if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
-				return fmt.Errorf("invalid settlement label %q in row %d, column %d", c, row, col)
-			}
-			a := byLabel[c]
-			if a == nil {
-				a = &SettlementArea{}
-				byLabel[c] = a
-				order = append(order, c)
-			}
+		a := &SettlementArea{}
+		t.Area = a
+		for stack := []hex.Hex{start}; len(stack) > 0; {
+			h := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
 			a.Spaces = append(a.Spaces, h)
-			t.Area = a
+			for _, n := range h.Neighbors() {
+				if nt := b.Tiles[n]; nt != nil && nt.Kind == Settlement && nt.Area == nil {
+					nt.Area = a
+					stack = append(stack, n)
+				}
+			}
 		}
-	}
-	for h, t := range b.Tiles {
-		if t.Kind == Settlement && t.Area == nil {
-			off := h.Q + (h.R-(h.R&1))/2
-			return fmt.Errorf("settlement space in row %d, column %d has no label", h.R, off)
-		}
-	}
-	for _, c := range order {
-		a := byLabel[c]
-		if n := len(a.Spaces); n > MaxSettlementSize {
-			return fmt.Errorf("settlement %q has %d spaces, max %d", c, n, MaxSettlementSize)
-		}
-		if !a.connected() {
-			return fmt.Errorf("settlement %q is not contiguous", c)
+		if a.Size() > MaxSettlementSize {
+			return fmt.Errorf("settlement at %v has %d spaces, max %d", start, a.Size(), MaxSettlementSize)
 		}
 		b.Settlements = append(b.Settlements, a)
 	}

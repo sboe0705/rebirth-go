@@ -48,16 +48,9 @@ Space kinds follow the Rebirth rules (Scotland and Ireland boards):
 
 ### Settlements
 
-A line `---` starts a second grid of the same shape that assigns every settlement space (`S`/`s`) to a settlement:
-a letter or digit as label, spaces with the same label form one settlement. Other cells may be `.`, space or the map character itself.
-Size = number of spaces: 1 small, 2 medium, 3 large, 4 extra-large (Ireland). Spaces of a settlement must be contiguous.
-The renderer draws the outline of each settlement in white (`#ffffff`).
-
-```
-..SS.S
----
-..aa.b
-```
+Adjacent settlement spaces (`S`/`s`) form one settlement, so separate settlements must not touch.
+Size = number of spaces: 1 small, 2 medium, 3 large, 4 extra-large (Ireland); more than 4 is an error.
+Settlement spaces are drawn with white edges (`#ffffff`).
 
 Not yet modelled: castle/cathedral names, 2-player blocked spaces.
 

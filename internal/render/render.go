@@ -14,11 +14,11 @@ import (
 )
 
 var (
-	Background = color.RGBA{0x2b, 0x5d, 0x8a, 0xff} // sea
-	borderCol  = color.RGBA{0x20, 0x20, 0x20, 0xff}
-	bonusCol   = color.RGBA{0xff, 0xff, 0xff, 0xff} // "+1" marker
-	frameCol   = color.RGBA{0xff, 0xff, 0xff, 0xff} // settlement outline
-	kindCol    = map[board.Kind]color.RGBA{
+	Background       = color.RGBA{0x2b, 0x5d, 0x8a, 0xff} // sea
+	borderCol        = color.RGBA{0x20, 0x20, 0x20, 0xff}
+	bonusCol         = color.RGBA{0xff, 0xff, 0xff, 0xff} // "+1" marker
+	settlementBorder = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	kindCol          = map[board.Kind]color.RGBA{
 		board.Empty:      {0xc8, 0xd6, 0x9a, 0xff},
 		board.Food:       {0x6f, 0xb0, 0x4a, 0xff},
 		board.Energy:     {0xe8, 0xc5, 0x3a, 0xff},
@@ -48,42 +48,28 @@ func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
 	}
 }
 
-// DrawBoard draws all tiles as filled hexagons with a border.
+// DrawBoard draws all tiles as filled hexagons with a border. Settlement
+// spaces are drawn last so their white edges stay on top.
 func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
-	for h, t := range b.Tiles {
-		drawHex(dst, l, h, kindCol[t.Kind])
-		if t.Bonus {
-			x, y := l.HexToPixel(h)
-			vector.DrawFilledCircle(dst, float32(x), float32(y), float32(l.Size/4), bonusCol, true)
-		}
-	}
-	// Second pass so neighboring hexes cannot paint over the outlines.
-	for h, t := range b.Tiles {
-		if t.Area != nil {
-			drawFrame(dst, l, h, t.Area)
+	for _, settlements := range []bool{false, true} {
+		for h, t := range b.Tiles {
+			if (t.Kind == board.Settlement) != settlements {
+				continue
+			}
+			border := borderCol
+			if settlements {
+				border = settlementBorder
+			}
+			drawHex(dst, l, h, kindCol[t.Kind], border)
+			if t.Bonus {
+				x, y := l.HexToPixel(h)
+				vector.DrawFilledCircle(dst, float32(x), float32(y), float32(l.Size/4), bonusCol, true)
+			}
 		}
 	}
 }
 
-// drawFrame draws the edges of h that lie on the outline of its settlement
-// in white, so each settlement shows as one framed area.
-func drawFrame(dst *ebiten.Image, l layout.Layout, h hex.Hex, a *board.SettlementArea) {
-	var p vector.Path
-	for dir := 0; dir < 6; dir++ {
-		if a.Contains(h.Neighbor(dir)) {
-			continue
-		}
-		e0, e1 := l.Edge(h, dir, 1)
-		p.MoveTo(float32(e0[0]), float32(e0[1]))
-		p.LineTo(float32(e1[0]), float32(e1[1]))
-	}
-	so := &vector.StrokeOptions{Width: float32(math.Max(2, l.Size/8)), LineCap: vector.LineCapRound}
-	do := &vector.DrawPathOptions{AntiAlias: true}
-	do.ColorScale.ScaleWithColor(frameCol)
-	vector.StrokePath(dst, &p, so, do)
-}
-
-func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, fill color.Color) {
+func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, fill, border color.Color) {
 	var p vector.Path
 	for i, c := range l.Corners(h) {
 		if i == 0 {
@@ -101,6 +87,6 @@ func drawHex(dst *ebiten.Image, l layout.Layout, h hex.Hex, fill color.Color) {
 
 	so := &vector.StrokeOptions{Width: float32(math.Max(1, l.Size/15)), LineJoin: vector.LineJoinRound}
 	do = &vector.DrawPathOptions{AntiAlias: true}
-	do.ColorScale.ScaleWithColor(borderCol)
+	do.ColorScale.ScaleWithColor(border)
 	vector.StrokePath(dst, &p, so, do)
 }
