@@ -52,6 +52,15 @@ func TestRandomValid(t *testing.T) {
 		if len(b.Settlements) != len(o.Settlements) {
 			t.Fatalf("seed %d: %d settlements, want %d (touching?)", seed, len(b.Settlements), len(o.Settlements))
 		}
+		hasBonus := map[*SettlementArea]bool{}
+		for _, tl := range b.Tiles {
+			if tl.Bonus {
+				if hasBonus[tl.Area] {
+					t.Fatalf("seed %d: settlement with two \"+1\" spaces", seed)
+				}
+				hasBonus[tl.Area] = true
+			}
+		}
 		if !connected(b) {
 			t.Fatalf("seed %d: board not connected", seed)
 		}

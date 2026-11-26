@@ -115,7 +115,37 @@ func Parse(name, text string) (*Board, error) {
 	if err := b.groupSettlements(); err != nil {
 		return nil, fmt.Errorf("%s: %w", name, err)
 	}
+	if err := b.validate(); err != nil {
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
 	return b, nil
+}
+
+// validate checks the map rules: castles, cathedrals and round towers are
+// never adjacent to each other, and each settlement has at most one "+1" space.
+func (b *Board) validate() error {
+	for h, t := range b.Tiles {
+		if t.Kind.Buildable() {
+			continue
+		}
+		for _, n := range h.Neighbors() {
+			if nt := b.Tiles[n]; nt != nil && !nt.Kind.Buildable() {
+				return fmt.Errorf("special spaces %v and %v are adjacent", h, n)
+			}
+		}
+	}
+	for _, a := range b.Settlements {
+		bonus := 0
+		for _, h := range a.Spaces {
+			if b.Tiles[h].Bonus {
+				bonus++
+			}
+		}
+		if bonus > 1 {
+			return fmt.Errorf("settlement at %v has %d \"+1\" spaces, max 1", a.Spaces[0], bonus)
+		}
+	}
+	return nil
 }
 
 // groupSettlements assigns each connected group of settlement spaces to one

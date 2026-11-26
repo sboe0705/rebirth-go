@@ -65,6 +65,10 @@ Adjacent settlement spaces (`S`/`s`) form one settlement, so separate settlement
 Size = number of spaces: 1 small, 2 medium, 3 large, 4 extra-large (Ireland); more than 4 is an error.
 Settlement spaces are drawn with white edges (`#ffffff`).
 
+Map rules (checked when loading and for random maps):
+- at most one "+1" space (`s`) per settlement,
+- castles, cathedrals and round towers (`C`/`K`/`R`) are never adjacent to each other.
+
 Not yet modelled: castle/cathedral names, 2-player blocked spaces.
 
 New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go` and an icon in `internal/render/icons.go`.
@@ -73,8 +77,8 @@ New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in
 
 `board.Random(seed, board.DefaultRandom)` (`internal/board/random.go`) builds a board of 100 spaces:
 a compact random shape, 4 castles and 3 cathedrals at least 3 spaces apart,
-8 settlements (sizes 1,1,1,2,2,2,3,3) that never touch each other, 3 "+1" settlement spaces
-(preferably at the coast), and the rest randomly empty, food or energy.
+8 settlements (sizes 1,1,1,2,2,2,3,3) that never touch each other, 3 "+1" spaces in different
+settlements (preferably at the coast), and the rest randomly empty, food or energy.
 The same seed always gives the same map.
 
 ## Structure

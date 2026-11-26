@@ -28,7 +28,8 @@ var DefaultRandom = RandomOptions{
 
 // Random generates a board from seed; the same seed gives the same board.
 // Special spaces are at least 3 apart, separate settlements never touch,
-// all other spaces are empty, food or energy.
+// each settlement has at most one "+1" space, all other spaces are empty,
+// food or energy.
 func Random(seed uint64, o RandomOptions) (*Board, error) {
 	rng := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
 	b := &Board{Name: fmt.Sprintf("random-%d", seed), Tiles: map[hex.Hex]*Tile{}}
@@ -132,7 +133,11 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		}
 	}
 
-	// "+1": coastal settlement spaces first.
+	if err := b.groupSettlements(); err != nil {
+		return nil, err
+	}
+
+	// "+1": at most one per settlement, coastal settlement spaces first.
 	var coast, inland []hex.Hex
 	for _, h := range order {
 		if b.Tiles[h].Kind != Settlement {
@@ -146,11 +151,18 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 	}
 	rng.Shuffle(len(coast), func(i, j int) { coast[i], coast[j] = coast[j], coast[i] })
 	rng.Shuffle(len(inland), func(i, j int) { inland[i], inland[j] = inland[j], inland[i] })
-	for i, h := range append(coast, inland...) {
-		if i >= o.Bonus {
+	hasBonus := map[*SettlementArea]bool{}
+	for _, h := range append(coast, inland...) {
+		if len(hasBonus) == o.Bonus {
 			break
 		}
-		b.Tiles[h].Bonus = true
+		if t := b.Tiles[h]; !hasBonus[t.Area] {
+			t.Bonus = true
+			hasBonus[t.Area] = true
+		}
+	}
+	if len(hasBonus) < o.Bonus {
+		return nil, fmt.Errorf("%d \"+1\" spaces but only %d settlements", o.Bonus, len(b.Settlements))
 	}
 
 	// Remaining spaces: empty, food or energy.
@@ -160,10 +172,7 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		}
 	}
 
-	if err := b.groupSettlements(); err != nil {
-		return nil, err
-	}
-	return b, nil
+	return b, b.validate()
 }
 
 func landNeighbors(b *Board, h hex.Hex) int {

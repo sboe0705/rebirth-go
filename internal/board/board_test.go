@@ -29,11 +29,11 @@ func TestParseInvalid(t *testing.T) {
 }
 
 func TestParseKinds(t *testing.T) {
-	b, err := Parse("x", "OFESCKR\nFs")
+	b, err := Parse("x", "OFESCOKOR\nFs")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []Kind{Empty, Food, Energy, Settlement, Castle, Cathedral, RoundTower}
+	want := []Kind{Empty, Food, Energy, Settlement, Castle, Empty, Cathedral, Empty, RoundTower}
 	for col, k := range want {
 		if got := b.Tiles[hex.FromOffset(col, 0)]; got.Kind != k || got.Bonus {
 			t.Errorf("col %d: got %+v, want %v", col, got, k)
@@ -68,5 +68,18 @@ func TestSettlementAreas(t *testing.T) {
 	}
 	if _, err := Parse("x", "SSSSS"); err == nil {
 		t.Fatal("expected error for settlement with 5 spaces")
+	}
+}
+
+func TestValidate(t *testing.T) {
+	for _, m := range []string{"CK", "OR\nC", "ss", "sS\n.s"} {
+		if _, err := Parse("t", m); err == nil {
+			t.Errorf("%q: expected error", m)
+		}
+	}
+	for _, m := range []string{"COK", "sOs", "sS"} {
+		if _, err := Parse("t", m); err != nil {
+			t.Errorf("%q: %v", m, err)
+		}
 	}
 }
