@@ -117,7 +117,27 @@ Map rules (checked when loading and for random maps; all violations are reported
 - harbors only on settlement spaces, at most one per settlement; wind collectors never on settlement spaces,
 - castles, cathedrals and round towers (`C`/`K`/`R`) are never adjacent to each other, except a castle next to a cathedral.
 
-Not yet modelled: castle/cathedral names, 2-player blocked spaces.
+### Spaces locked in 2-player games
+
+In a 2-player game some spaces are covered with neutral tiles (SCO p. 2). Mark them in a second grid after a line `[2 players]`, with the same rows and columns as the map above it: `x` = locked, `.` or space = not locked. Any space can be locked, including castles and cathedrals.
+
+```
+.OFESOO.
+.FCOSSEO
+[2 players]
+...x....
+..x..x..
+```
+
+With 2 players a locked space is drawn as a grey tile with a cross and counts as occupied by a neutral tile (the rulebook gives no details, so this is our reading):
+- nobody can place there; it doesn't count as a free space for the food/energy fallback rule,
+- a settlement with a locked space is completed when its other spaces are occupied and scored by its full size; the neutral tile has no houses,
+- the neutral tile belongs to no player, so it counts for no one around a castle and splits facility groups,
+- a locked castle can't be controlled and scores nothing; a locked harbor or wind collector can't be used.
+
+With 1, 3 or 4 players the grid is ignored.
+
+Not yet modelled: castle/cathedral names.
 
 New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go` and an icon in `internal/render/icons.go`.
 

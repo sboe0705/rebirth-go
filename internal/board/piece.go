@@ -47,6 +47,7 @@ func (k Kind) Allows(f Piece) bool {
 var (
 	ErrNoSpace   = errors.New("no space")
 	ErrOccupied  = errors.New("space already occupied")
+	ErrBlocked   = errors.New("space locked in 2-player games")
 	ErrWrongKind = errors.New("not allowed on this space")
 )
 
@@ -60,6 +61,8 @@ func (b *Board) CanPlace(h hex.Hex, f Piece) error {
 		return ErrNoSpace
 	case t.Piece != NoPiece:
 		return ErrOccupied
+	case b.Blocked(h):
+		return ErrBlocked
 	case t.Kind.Allows(f):
 		return nil
 	case f == FoodFacility && t.Kind == Energy, f == EnergyFacility && t.Kind == Food:
@@ -71,8 +74,8 @@ func (b *Board) CanPlace(h hex.Hex, f Piece) error {
 }
 
 func (b *Board) freeSpaceAllows(f Piece) bool {
-	for _, t := range b.Tiles {
-		if t.Piece == NoPiece && t.Kind.Allows(f) {
+	for h, t := range b.Tiles {
+		if t.Piece == NoPiece && t.Kind.Allows(f) && !b.Blocked(h) {
 			return true
 		}
 	}

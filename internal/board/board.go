@@ -83,6 +83,8 @@ type Tile struct {
 	Kind  Kind
 	Bonus Bonus           // "+1" marker: harbor or wind collector
 	Area  *SettlementArea // settlement this space belongs to; nil unless Kind == Settlement
+	// Locked spaces are covered by a neutral tile in 2-player games (SCO p. 2), see Blocked.
+	Locked bool
 
 	Piece  Piece // placed tile, NoPiece if none
 	Houses int   // settlement symbols on a placed settlement tile
@@ -156,15 +158,31 @@ func LoadFile(path string) (*Board, error) {
 // (odd-r offset: odd rows are shifted right by half a tile),
 // each character a column. '.' or ' ' = no tile, '#' at line start = comment.
 // Adjacent settlement spaces form one settlement.
+// An optional second grid after a line "[2 players]" has the same rows and
+// columns; 'x' there marks a space locked in 2-player games.
 // If the map only breaks the map rules (see validate), Parse returns the
 // board together with the error, so it can still be shown.
 func Parse(name, text string) (*Board, error) {
 	b := &Board{Name: name, Tiles: map[hex.Hex]*Tile{}}
 	sc := bufio.NewScanner(strings.NewReader(text))
-	row := 0
+	row, locks := 0, false
 	for sc.Scan() {
 		line := sc.Text()
 		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.TrimSpace(line) == twoPlayers {
+			if locks {
+				return nil, fmt.Errorf("%s: %s appears twice", name, twoPlayers)
+			}
+			row, locks = 0, true
+			continue
+		}
+		if locks {
+			if err := b.parseLocks(line, row); err != nil {
+				return nil, fmt.Errorf("%s: %w", name, err)
+			}
+			row++
 			continue
 		}
 		for col, c := range []rune(line) {
@@ -187,6 +205,36 @@ func Parse(name, text string) (*Board, error) {
 		return b, fmt.Errorf("%s: %w", name, err) // the board is usable, see Parse
 	}
 	return b, nil
+}
+
+// twoPlayers starts the grid of spaces locked in 2-player games.
+const twoPlayers = "[2 players]"
+
+// parseLocks reads one row of the "[2 players]" grid.
+func (b *Board) parseLocks(line string, row int) error {
+	for col, c := range []rune(line) {
+		switch c {
+		case '.', ' ':
+		case 'x':
+			t := b.Tiles[hex.FromOffset(col, row)]
+			if t == nil {
+				return fmt.Errorf("locked space at row %d, col %d is not on the map", row, col)
+			}
+			t.Locked = true
+		default:
+			return fmt.Errorf("unknown character %q in row %d, column %d of %s (only x and .)", c, row, col, twoPlayers)
+		}
+	}
+	return nil
+}
+
+// Blocked reports whether space h is out of play: locked and a 2-player
+// game. A blocked space counts as occupied by a neutral tile: nobody can
+// place there, it belongs to no player, and a blocked castle can't be
+// controlled.
+func (b *Board) Blocked(h hex.Hex) bool {
+	t := b.Tiles[h]
+	return t != nil && t.Locked && b.Players == 2
 }
 
 // validate checks the map rules and reports every violation: settlements

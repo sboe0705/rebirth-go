@@ -34,6 +34,8 @@ var (
 		board.SettlementTile: {0xb0, 0x30, 0x2a, 0xff},
 	}
 	invalidCol  = color.RGBA{0xe0, 0x30, 0x30, 0xff}
+	neutralCol  = color.RGBA{0x8c, 0x8c, 0x8c, 0xff} // neutral tile on a blocked space
+	neutralMark = color.RGBA{0x5c, 0x5c, 0x5c, 0xff}
 	iconOnPiece = color.RGBA{0xff, 0xff, 0xff, 0xff}
 
 	// PlayerColors are the player colours (index = player), shown as the
@@ -68,6 +70,8 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			x, y := l.HexToPixel(h)
 			cx, cy, sz := float32(x), float32(y), float32(l.Size)
 			switch {
+			case b.Blocked(h):
+				drawNeutral(dst, l, h)
 			case t.Piece != board.NoPiece:
 				drawPiece(dst, l, h, board.Chip{Piece: t.Piece, Houses: t.Houses}, t.Owner)
 			case t.Bonus != board.NoBonus:
@@ -106,6 +110,19 @@ func drawPiece(dst *ebiten.Image, l layout.Layout, h hex.Hex, c board.Chip, owne
 	} else {
 		drawPieceIcon(dst, c.Piece, cx, cy, s, ic)
 	}
+}
+
+// drawNeutral draws the neutral tile on a blocked space: grey with a cross.
+func drawNeutral(dst *ebiten.Image, l layout.Layout, h hex.Hex) {
+	drawHex(dst, l, h, pieceScale, neutralCol, borderCol)
+	x, y := l.HexToPixel(h)
+	d := 0.25 * l.Size
+	var p vector.Path
+	p.MoveTo(float32(x-d), float32(y-d))
+	p.LineTo(float32(x+d), float32(y+d))
+	p.MoveTo(float32(x+d), float32(y-d))
+	p.LineTo(float32(x-d), float32(y+d))
+	strokePath(dst, l, &p, neutralMark, 2)
 }
 
 // DrawHover marks the space under the cursor: a translucent preview of

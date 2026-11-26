@@ -45,7 +45,7 @@ var settlementNames = map[int]string{1: "small", 2: "medium", 3: "large", 4: "ex
 func (b *Board) placeGains(h hex.Hex) []Gain {
 	g := b.pieceGains(h)
 	for _, n := range h.Neighbors() {
-		if t := b.Tiles[n]; t != nil && t.Kind == Castle {
+		if t := b.Tiles[n]; t != nil && t.Kind == Castle && !b.Blocked(n) {
 			g = append(g, b.updateCastle(n, b.Tiles[h].Owner)...)
 		}
 	}
@@ -137,7 +137,9 @@ func (b *Board) settlementGains(a *SettlementArea, p int) []Gain {
 	name := settlementNames[a.Size()] + " settlement completed"
 	houses := map[int]int{}
 	for _, h := range a.Spaces {
-		houses[b.Tiles[h].Owner] += b.Tiles[h].Houses
+		if t := b.Tiles[h]; t.Piece != NoPiece { // skip blocked spaces
+			houses[t.Owner] += t.Houses
+		}
 	}
 	if a.Size() == 1 {
 		return []Gain{{p, houses[p], name}}
@@ -191,9 +193,11 @@ func (b *Board) groupSize(h hex.Hex) int {
 	return len(seen)
 }
 
+// complete reports whether all spaces of a are occupied; a blocked space
+// counts as occupied by its neutral tile.
 func (b *Board) complete(a *SettlementArea) bool {
 	for _, h := range a.Spaces {
-		if b.Tiles[h].Piece == NoPiece {
+		if b.Tiles[h].Piece == NoPiece && !b.Blocked(h) {
 			return false
 		}
 	}
