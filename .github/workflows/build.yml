@@ -1,0 +1,43 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: System-Abhängigkeiten
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libxrandr-dev libxcursor-dev \
+            libxinerama-dev libxi-dev libxxf86vm-dev libasound2-dev pkg-config
+      - run: go vet ./...
+      - run: go test ./...
+      - run: ./scripts/build-linux.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rebirth-linux-amd64
+          path: bin/rebirth
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - name: Build
+        shell: bash
+        run: ./scripts/build-windows.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rebirth-windows-amd64
+          path: bin/rebirth.exe
