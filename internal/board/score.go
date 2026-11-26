@@ -1,6 +1,10 @@
 package board
 
-import "github.com/sboe0705/rebirth-go/internal/hex"
+import (
+	"fmt"
+
+	"github.com/sboe0705/rebirth-go/internal/hex"
+)
 
 // Scoring for a single player (no opponents yet), Rebirth rules SCO p. 3–4,
 // IRL p. 3–4. Mission cards and round tower bonuses are not scored.
@@ -26,30 +30,66 @@ type Score struct {
 // Total returns the score as if the game ended now.
 func (s Score) Total() int { return s.Placed + s.Castles + s.OpenSettlements }
 
-// placePoints returns the points for the piece just placed at h:
+// Gain is one part of the points scored by a placement, with the reason.
+type Gain struct {
+	Points int
+	Reason string
+}
+
+var settlementNames = map[int]string{1: "small", 2: "medium", 3: "large", 4: "extra-large"}
+
+// placeGains returns the points for the piece just placed at h:
 // facilities score the size of their group, a "+1" space scores 1, and a
 // completed settlement scores its value.
-func (b *Board) placePoints(h hex.Hex) int {
+// A newly controlled castle is listed with 0 points (it scores at game end).
+func (b *Board) placeGains(h hex.Hex) []Gain {
+	g := b.pieceGains(h)
+	for _, n := range h.Neighbors() {
+		if t := b.Tiles[n]; t != nil && t.Kind == Castle && b.adjacentPieces(n) == 1 {
+			g = append(g, Gain{0, fmt.Sprintf("castle controlled (%d at game end)", CastlePoints)})
+		}
+	}
+	return g
+}
+
+func (b *Board) adjacentPieces(h hex.Hex) int {
+	c := 0
+	for _, n := range h.Neighbors() {
+		if t := b.Tiles[n]; t != nil && t.Piece != NoPiece {
+			c++
+		}
+	}
+	return c
+}
+
+func (b *Board) pieceGains(h hex.Hex) []Gain {
 	t := b.Tiles[h]
 	switch t.Piece {
 	case FoodFacility, EnergyFacility:
-		return b.groupSize(h)
+		n := b.groupSize(h)
+		return []Gain{{n, fmt.Sprintf("%v group of %d", t.Piece, n)}}
 	case SettlementTile:
-		p := 0
+		var g []Gain
 		if t.Bonus {
-			p++
+			g = append(g, Gain{1, `"+1" space`})
 		}
 		if a := t.Area; b.complete(a) {
+			p := completedSettlementPoints[a.Size()]
 			if a.Size() == 1 {
-				p += HousesPerSettlementTile
-			} else {
-				p += completedSettlementPoints[a.Size()]
+				p = HousesPerSettlementTile
 			}
+			g = append(g, Gain{p, settlementNames[a.Size()] + " settlement completed"})
 		}
-		return p
+		if g == nil {
+			g = []Gain{{0, "settlement not yet completed"}}
+		}
+		return g
 	}
-	return 0
+	return nil
 }
+
+// LastGains returns how the most recent placement scored.
+func (b *Board) LastGains() []Gain { return b.lastGains }
 
 // groupSize counts the connected pieces of the same type as the one at h.
 func (b *Board) groupSize(h hex.Hex) int {
@@ -86,11 +126,8 @@ func (b *Board) Score() Score {
 		if t.Kind != Castle {
 			continue
 		}
-		for _, n := range h.Neighbors() {
-			if nt := b.Tiles[n]; nt != nil && nt.Piece != NoPiece {
-				s.Castles += CastlePoints
-				break
-			}
+		if b.adjacentPieces(h) > 0 {
+			s.Castles += CastlePoints
 		}
 	}
 	for _, a := range b.Settlements {

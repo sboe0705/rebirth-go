@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand/v2"
+	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
@@ -58,8 +59,36 @@ func (g *game) Draw(screen *ebiten.Image) {
 	sc := g.board.Score()
 	ebitenutil.DebugPrint(screen, fmt.Sprintf(
 		"Selected: %v  (F / E / S or right click to switch, left click to place)\n"+
-			"Points: %d  (placed %d, castles %d, open settlements %d)\n%s",
-		g.selected, sc.Total(), sc.Placed, sc.Castles, sc.OpenSettlements, g.msg))
+			"Points: %d  (placed %d, castles %d, open settlements %d)\n%s\n%s",
+		g.selected, sc.Total(), sc.Placed, sc.Castles, sc.OpenSettlements, lastPlacement(g.board.LastGains()), g.msg))
+}
+
+// lastPlacement explains the points of the most recent placement,
+// e.g. "Last placement: +9 = 1 ("+1" space) + 8 (medium settlement completed)".
+func lastPlacement(gains []board.Gain) string {
+	if gains == nil {
+		return ""
+	}
+	sum, parts, notes := 0, []string{}, []string{}
+	for _, g := range gains {
+		if g.Points == 0 {
+			notes = append(notes, g.Reason)
+			continue
+		}
+		sum += g.Points
+		parts = append(parts, fmt.Sprintf("%d (%s)", g.Points, g.Reason))
+	}
+	s := fmt.Sprintf("Last placement: +%d", sum)
+	switch {
+	case len(parts) == 1:
+		s = fmt.Sprintf("Last placement: +%s", parts[0])
+	case len(parts) > 1:
+		s += " = " + strings.Join(parts, " + ")
+	}
+	if len(notes) > 0 {
+		s += "; " + strings.Join(notes, "; ")
+	}
+	return s
 }
 
 func (g *game) Layout(_, _ int) (int, int) { return screenW, screenH }

@@ -1,6 +1,7 @@
 package board
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
@@ -56,5 +57,29 @@ func TestFailedPlaceScoresNothing(t *testing.T) {
 	_ = b.Place(hex.FromOffset(0, 0), FoodFacility)
 	if got := b.Score().Placed; got != 1 {
 		t.Errorf("Placed = %d, want 1", got)
+	}
+}
+
+func TestLastGains(t *testing.T) {
+	cases := []struct {
+		name string
+		b    *Board
+		want []Gain
+	}{
+		{"group", placeAll(t, "OO", 0, FoodFacility, 1, FoodFacility),
+			[]Gain{{2, "food facility group of 2"}}},
+		{"settlement", placeAll(t, "sS", 1, SettlementTile, 0, SettlementTile),
+			[]Gain{{1, `"+1" space`}, {8, "medium settlement completed"}}},
+		{"open settlement", placeAll(t, "SS", 0, SettlementTile),
+			[]Gain{{0, "settlement not yet completed"}}},
+		{"castle", placeAll(t, "OCO", 0, EnergyFacility),
+			[]Gain{{1, "energy facility group of 1"}, {0, "castle controlled (5 at game end)"}}},
+		{"castle already controlled", placeAll(t, "OCO", 0, EnergyFacility, 2, EnergyFacility),
+			[]Gain{{1, "energy facility group of 1"}}},
+	}
+	for _, c := range cases {
+		if got := c.b.LastGains(); !slices.Equal(got, c.want) {
+			t.Errorf("%s: LastGains() = %v, want %v", c.name, got, c.want)
+		}
 	}
 }

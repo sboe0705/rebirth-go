@@ -71,7 +71,8 @@ type Board struct {
 	Tiles       map[hex.Hex]*Tile
 	Settlements []*SettlementArea
 
-	points int // points scored while placing tiles, see Score
+	points    int    // points scored while placing tiles, see Score
+	lastGains []Gain // how the most recent placement scored
 }
 
 //go:embed maps/*.txt

@@ -45,6 +45,10 @@ The top left shows the points as if the game ended now:
 - **castles** – 5 per castle with at least one adjacent tile (no opponents, so no majority yet).
 - **open settlements** – houses on tiles in incomplete settlements.
 
+The line below explains the most recent placement, e.g.
+`Last placement: +9 = 1 ("+1" space) + 8 (medium settlement completed)` or
+`Last placement: +3 (food facility group of 3); castle controlled (5 at game end)`.
+
 Not scored: cathedral mission cards, round tower bonuses. Each settlement tile counts as 1 house for now.
 
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.

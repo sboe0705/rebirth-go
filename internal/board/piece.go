@@ -69,6 +69,9 @@ func (b *Board) Place(h hex.Hex, f Piece) error {
 		return err
 	}
 	b.Tiles[h].Piece = f
-	b.points += b.placePoints(h)
+	b.lastGains = b.placeGains(h)
+	for _, g := range b.lastGains {
+		b.points += g.Points
+	}
 	return nil
 }
