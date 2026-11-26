@@ -1,6 +1,8 @@
 package board
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
@@ -13,6 +15,30 @@ func TestLoadExample(t *testing.T) {
 	}
 	if len(b.Tiles) == 0 {
 		t.Fatal("no tiles")
+	}
+}
+
+func TestLoadFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "mine.txt")
+	if err := os.WriteFile(path, []byte("# comment\nOFS\n.EC\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b, err := LoadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Name != "mine" || len(b.Tiles) != 5 {
+		t.Fatalf("got name %q with %d tiles, want \"mine\" with 5", b.Name, len(b.Tiles))
+	}
+	if _, err := LoadFile(filepath.Join(t.TempDir(), "missing.txt")); err == nil {
+		t.Fatal("expected error for a missing file")
+	}
+	bad := filepath.Join(t.TempDir(), "bad.txt")
+	if err := os.WriteFile(bad, []byte("OX"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadFile(bad); err == nil {
+		t.Fatal("expected error for an invalid map")
 	}
 }
 
@@ -70,6 +96,24 @@ func TestSettlementAreas(t *testing.T) {
 	}
 	if _, err := Parse("x", "SSSSS"); err == nil {
 		t.Fatal("expected error for settlement with 5 spaces")
+	}
+}
+
+func TestParseRuleViolations(t *testing.T) {
+	// castle next to cathedral (row 0, col 1/2) and an inland wind collector
+	b, err := Parse("t", "OCKO\nOOfOO\nOOOO")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if b == nil || len(b.Tiles) != 13 {
+		t.Fatalf("board not returned with the rule error: %v", b)
+	}
+	want := "t: castle at row 0, col 1 and cathedral at row 0, col 2 are adjacent\nwind collector at row 1, col 2 is not at the coast"
+	if err.Error() != want {
+		t.Fatalf("got %q, want %q", err, want)
+	}
+	if b, _ := Parse("t", "OX"); b != nil {
+		t.Fatal("unknown character must not return a board")
 	}
 }
 

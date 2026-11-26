@@ -28,3 +28,13 @@ func TestFromOffset(t *testing.T) {
 		t.Fatal("offset conversion wrong")
 	}
 }
+
+func TestToOffset(t *testing.T) {
+	for row := -3; row <= 3; row++ {
+		for col := -3; col <= 3; col++ {
+			if c, r := FromOffset(col, row).ToOffset(); c != col || r != row {
+				t.Fatalf("(%d,%d) -> %d,%d", col, row, c, r)
+			}
+		}
+	}
+}

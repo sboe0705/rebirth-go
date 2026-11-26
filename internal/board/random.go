@@ -139,9 +139,7 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		}
 	}
 
-	if err := b.groupSettlements(); err != nil {
-		return nil, err
-	}
+	b.groupSettlements()
 
 	// Remaining spaces: empty, food or energy.
 	for _, h := range order {
@@ -175,7 +173,10 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		return nil, fmt.Errorf("no room for %d harbors and %d wind collectors at the coast", o.Harbors, o.WindCollectors)
 	}
 
-	return b, b.validate()
+	if err := b.validate(); err != nil {
+		return nil, err
+	}
+	return b, nil
 }
 
 func landNeighbors(b *Board, h hex.Hex) int {

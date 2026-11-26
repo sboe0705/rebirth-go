@@ -4,7 +4,12 @@ package board
 import (
 	"bufio"
 	"embed"
+	"errors"
 	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
@@ -25,6 +30,27 @@ const (
 
 // Buildable reports whether player tiles can be placed on this kind of space.
 func (k Kind) Buildable() bool { return k <= Settlement }
+
+// String returns the name of the space kind.
+func (k Kind) String() string {
+	switch k {
+	case Empty:
+		return "empty space"
+	case Food:
+		return "food space"
+	case Energy:
+		return "energy space"
+	case Settlement:
+		return "settlement space"
+	case Castle:
+		return "castle"
+	case Cathedral:
+		return "cathedral"
+	case RoundTower:
+		return "round tower"
+	}
+	return "unknown space"
+}
 
 // Bonus is a "+1" marker on a coastal space: placing a tile there scores 1.
 type Bonus int
@@ -116,10 +142,22 @@ func Load(name string) (*Board, error) {
 	return Parse(name, string(data))
 }
 
+// LoadFile loads a map from a file outside the program, e.g. a map you keep
+// privately; it is named after the file without ".txt".
+func LoadFile(path string) (*Board, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	return Parse(strings.TrimSuffix(filepath.Base(path), ".txt"), string(data))
+}
+
 // Parse reads a map in text format: each line is a hex row
 // (odd-r offset: odd rows are shifted right by half a tile),
 // each character a column. '.' or ' ' = no tile, '#' at line start = comment.
 // Adjacent settlement spaces form one settlement.
+// If the map only breaks the map rules (see validate), Parse returns the
+// board together with the error, so it can still be shown.
 func Parse(name, text string) (*Board, error) {
 	b := &Board{Name: name, Tiles: map[hex.Hex]*Tile{}}
 	sc := bufio.NewScanner(strings.NewReader(text))
@@ -144,37 +182,43 @@ func Parse(name, text string) (*Board, error) {
 	if err := sc.Err(); err != nil {
 		return nil, err
 	}
-	if err := b.groupSettlements(); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
-	}
+	b.groupSettlements()
 	if err := b.validate(); err != nil {
-		return nil, fmt.Errorf("%s: %w", name, err)
+		return b, fmt.Errorf("%s: %w", name, err) // the board is usable, see Parse
 	}
 	return b, nil
 }
 
-// validate checks the map rules: castles, cathedrals and round towers are
-// never adjacent to each other; harbors and wind collectors are at the coast,
-// harbors only on settlement spaces (at most one per settlement), wind
-// collectors never on settlement spaces.
+// validate checks the map rules and reports every violation: settlements
+// have at most MaxSettlementSize spaces; castles, cathedrals and round towers
+// are never adjacent to each other; harbors and wind collectors are at the
+// coast, harbors only on settlement spaces (at most one per settlement),
+// wind collectors never on settlement spaces.
 func (b *Board) validate() error {
-	for h, t := range b.Tiles {
+	var errs []error
+	for _, h := range b.sortedHexes() {
+		t := b.Tiles[h]
 		if t.Bonus != NoBonus && !b.Coast(h) {
-			return fmt.Errorf("%v at %v is not at the coast", t.Bonus, h)
+			errs = append(errs, fmt.Errorf("%v at %s is not at the coast", t.Bonus, Pos(h)))
 		}
 		if (t.Bonus == Harbor) != (t.Bonus != NoBonus && t.Kind == Settlement) {
-			return fmt.Errorf("%v at %v not allowed on this space", t.Bonus, h)
+			errs = append(errs, fmt.Errorf("%v at %s not allowed on this space", t.Bonus, Pos(h)))
 		}
 		if t.Kind.Buildable() {
 			continue
 		}
 		for _, n := range h.Neighbors() {
-			if nt := b.Tiles[n]; nt != nil && !nt.Kind.Buildable() {
-				return fmt.Errorf("special spaces %v and %v are adjacent", h, n)
+			// report each pair once, from the earlier space
+			if nt := b.Tiles[n]; nt != nil && !nt.Kind.Buildable() && less(h, n) {
+				errs = append(errs, fmt.Errorf("%v at %s and %v at %s are adjacent", t.Kind, Pos(h), nt.Kind, Pos(n)))
 			}
 		}
 	}
 	for _, a := range b.Settlements {
+		first := slices.MinFunc(a.Spaces, cmpHex)
+		if a.Size() > MaxSettlementSize {
+			errs = append(errs, fmt.Errorf("settlement at %s has %d spaces, max %d", Pos(first), a.Size(), MaxSettlementSize))
+		}
 		bonus := 0
 		for _, h := range a.Spaces {
 			if b.Tiles[h].Bonus == Harbor {
@@ -182,10 +226,35 @@ func (b *Board) validate() error {
 			}
 		}
 		if bonus > 1 {
-			return fmt.Errorf("settlement at %v has %d harbors, max 1", a.Spaces[0], bonus)
+			errs = append(errs, fmt.Errorf("settlement at %s has %d harbors, max 1", Pos(first), bonus))
 		}
 	}
-	return nil
+	return errors.Join(errs...)
+}
+
+// Pos formats h as its row and column in a map file (both counted from 0,
+// comment lines not counted).
+func Pos(h hex.Hex) string {
+	col, row := h.ToOffset()
+	return fmt.Sprintf("row %d, col %d", row, col)
+}
+
+// cmpHex orders spaces like a map file: by row, then column.
+func cmpHex(a, b hex.Hex) int {
+	ac, ar := a.ToOffset()
+	bc, br := b.ToOffset()
+	if ar != br {
+		return ar - br
+	}
+	return ac - bc
+}
+
+func less(a, b hex.Hex) bool { return cmpHex(a, b) < 0 }
+
+func (b *Board) sortedHexes() []hex.Hex {
+	hs := slices.Collect(maps.Keys(b.Tiles))
+	slices.SortFunc(hs, cmpHex)
+	return hs
 }
 
 // Coast reports whether h is a space next to water (fewer than 6 neighbors).
@@ -193,7 +262,7 @@ func (b *Board) Coast(h hex.Hex) bool { return b.Tiles[h] != nil && landNeighbor
 
 // groupSettlements assigns each connected group of settlement spaces to one
 // SettlementArea (flood fill).
-func (b *Board) groupSettlements() error {
+func (b *Board) groupSettlements() {
 	for start, t := range b.Tiles {
 		if t.Kind != Settlement || t.Area != nil {
 			continue
@@ -211,12 +280,8 @@ func (b *Board) groupSettlements() error {
 				}
 			}
 		}
-		if a.Size() > MaxSettlementSize {
-			return fmt.Errorf("settlement at %v has %d spaces, max %d", start, a.Size(), MaxSettlementSize)
-		}
 		b.Settlements = append(b.Settlements, a)
 	}
-	return nil
 }
 
 // Radius creates a hexagon-shaped board with radius n (empty spaces only).

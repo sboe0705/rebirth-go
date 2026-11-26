@@ -20,6 +20,8 @@ go run ./cmd/rebirth                 # new random map on every start
 go run ./cmd/rebirth -seed 42        # reproduce a random map, tile order and computer moves (seed is shown in the window title)
 go run ./cmd/rebirth -players 3      # you + 2 computer players (default: choose 1-4 on the start screen)
 go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g. -map example
+go run ./cmd/rebirth -map <file>     # loads a map file from anywhere, e.g. -map ~/maps/mine.txt
+go run ./cmd/rebirth -lax -map <m>   # also loads maps that break the map rules (problems are printed as warnings)
 
 ./scripts/build.sh                   # vet + test + Linux and Windows builds into bin/
 ./scripts/build-linux.sh
@@ -84,6 +86,7 @@ CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push an
 ## Map format
 
 Maps are text files under `internal/board/maps/` and are embedded via `go:embed`.
+With `-map <file>` (any value containing `/` or ending in `.txt`) a map is read from a file outside the repo instead, e.g. a map you keep for yourself; it is checked against the same rules.
 Each line is a hex row, each character a column ("odd-r": odd rows are shifted right by half a tile).
 Lines starting with `#` are comments.
 
@@ -108,7 +111,8 @@ Adjacent settlement spaces (`S`/`s`) form one settlement, so separate settlement
 Size = number of spaces: 1 small, 2 medium, 3 large, 4 extra-large (Ireland); more than 4 is an error.
 Settlement spaces are drawn with white edges (`#ffffff`).
 
-Map rules (checked when loading and for random maps):
+Map rules (checked when loading and for random maps; all violations are reported with their row and column in the file, counted from 0 without comment lines; `-lax` loads such a map anyway):
+- settlements have at most 4 spaces,
 - harbors and wind collectors are only at the coast (space next to water),
 - harbors only on settlement spaces, at most one per settlement; wind collectors never on settlement spaces,
 - castles, cathedrals and round towers (`C`/`K`/`R`) are never adjacent to each other.

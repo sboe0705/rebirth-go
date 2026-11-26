@@ -6,6 +6,7 @@ import (
 	"log"
 	"maps"
 	"math/rand/v2"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -288,9 +289,10 @@ func (g *game) Layout(w, h int) (int, int) {
 }
 
 func main() {
-	mapName := flag.String("map", "random", `"random" or name of an embedded map (internal/board/maps/<name>.txt)`)
+	mapName := flag.String("map", "random", `"random", name of an embedded map (internal/board/maps/<name>.txt) or path to a map file (contains "/" or ends in ".txt")`)
 	seed := flag.Uint64("seed", 0, "seed for the random map, the tile order and the computer moves (0 = new random seed)")
 	players := flag.Int("players", 0, fmt.Sprintf("number of players 1-%d: you + computer players (0 = choose at start)", maxPlayers))
+	lax := flag.Bool("lax", false, "also load maps that break the map rules; the problems are printed as warnings")
 	flag.Parse()
 
 	if *players < 0 || *players > maxPlayers {
@@ -303,11 +305,16 @@ func main() {
 	var err error
 	if *mapName == "random" {
 		b, err = board.Random(*seed, board.DefaultRandom)
+	} else if strings.ContainsRune(*mapName, filepath.Separator) || strings.Contains(*mapName, "/") || strings.HasSuffix(*mapName, ".txt") {
+		b, err = board.LoadFile(*mapName)
 	} else {
 		b, err = board.Load(*mapName)
 	}
 	if err != nil {
-		log.Fatal(err)
+		if b == nil || !*lax {
+			log.Fatal(err)
+		}
+		log.Printf("warning: the map breaks the map rules:\n%v", err)
 	}
 	ebiten.SetWindowSize(screenW, screenH)
 	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)

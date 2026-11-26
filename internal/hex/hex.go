@@ -51,6 +51,11 @@ func FromOffset(col, row int) Hex {
 	return Hex{col - (row-(row&1))/2, row}
 }
 
+// ToOffset converts h to "odd-r" offset coordinates (column, row).
+func (h Hex) ToOffset() (col, row int) {
+	return h.Q + (h.R-(h.R&1))/2, h.R
+}
+
 func abs(x int) int {
 	if x < 0 {
 		return -x
