@@ -50,6 +50,12 @@ A computer player places its tile on a random allowed space after a short pause.
 Placed tiles are filled with the owner's colour with a black border and a white icon (dark on yellow tiles); a controlled castle shows its icon in the owner's colour with a black outline.
 Not modelled: the 32 neutral tiles of the 2-player game and the castle tie-break for the winner (a tie is shared).
 
+Each player has a panel in a window corner (you bottom left, then clockwise): name, points, score parts, tiles left in supply,
+and the tile in hand (yours always, a computer player's while it is placing). The player to move has a frame in their colour and a ▶ marker.
+The right column lists the last 8 moves between the two right panels; messages appear at the bottom.
+The board is fitted to the area left of that column without touching the panels (`internal/layout/hud.go`).
+Text uses the Go fonts (`golang.org/x/image/font/gofont`, BSD license).
+
 Food facilities go on empty or food spaces, energy facilities on empty or energy spaces, settlement tiles on settlement spaces; one tile per space.
 A facility may go on a space of the other facility type only if no free empty space and no free space of its own type is left.
 The hovered space shows a preview, or a red outline if the tile is not allowed there.
@@ -58,7 +64,7 @@ Space icons are drawn in a darker shade (55 %) of the space color.
 
 ### Scoring (`internal/board/score.go`)
 
-The top left shows each player's points as if the game ended now:
+Each panel shows the player's points as if the game ended now, split into:
 - **placed** – scored when placing: a facility scores the size of its group (adjacent tiles of the same type and colour),
   a harbor or wind collector scores 1.
   A completed settlement ranks the players by their houses in it: medium 5/3, large 8/5, extra-large 12/8/5;
@@ -68,9 +74,8 @@ The top left shows each player's points as if the game ended now:
   or when tied for most with the most adjacent facilities among the tied players; otherwise it stays.
 - **open settlements** – houses on the player's tiles in incomplete settlements.
 
-The line below explains the most recent placement, e.g.
-`Last placement: You +9 = 1 (harbor) + 8 (medium settlement completed)` or
-`Last placement: Computer 1 +1 (food facility group of 1), castle taken over (5 at game end); You +0, castle lost`.
+The move log explains each placement, e.g. `You +9` with `+1 harbor` and `+8 medium settlement completed`,
+or `Computer 1 +1` with `+1 food facility group of 1`, `castle taken over (5 at game end)` and `You: castle lost`.
 
 Not scored: cathedral mission cards, round tower bonuses.
 

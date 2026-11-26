@@ -4,12 +4,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"maps"
 	"math/rand/v2"
 	"slices"
 	"strings"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
 	"github.com/sboe0705/rebirth-go/internal/board"
@@ -21,7 +21,9 @@ import (
 const (
 	screenW, screenH = 1024, 768 // initial window size
 	maxPlayers       = 4
-	computerDelay    = 40 // ticks (1/60 s) before a computer player places its tile
+	computerDelay    = 40  // ticks (1/60 s) before a computer player places its tile
+	msgTicks         = 240 // how long a message is shown (the last second fading)
+	logLen           = 8   // moves shown in the log
 )
 
 // player is the user (index 0) or a computer player placing at random.
@@ -33,9 +35,17 @@ type player struct {
 	hasHand  bool
 }
 
+// move is a placement for the move log.
+type move struct {
+	player int
+	chip   board.Chip
+	gains  []board.Gain
+}
+
 type game struct {
 	board   *board.Board
 	layout  layout.Layout
+	hud     layout.HUD
 	w, h    int // current screen size; the layout is refitted when it changes
 	seed    uint64
 	rng     *rand.Rand // computer players' choices
@@ -44,9 +54,13 @@ type game struct {
 	wait    int        // ticks until the computer player to move places
 	over    bool       // all supplies empty, game ended
 	hover   hex.Hex
-	last    string // explanation of the most recent placement
+	moves   []move // newest first, at most logLen
 	msg     string
+	msgT    int // ticks the message is still shown
 }
+
+// say shows message s for a few seconds.
+func (g *game) say(s string) { g.msg, g.msgT = s, msgTicks }
 
 // start sets up n players: the user and n-1 computer players, each with an
 // own shuffled supply, and gives the first turn to the user.
@@ -71,7 +85,7 @@ func (g *game) refill(p *player) {
 		return
 	}
 	if p.hasHand {
-		g.msg = fmt.Sprintf("%s: %v fits nowhere, discarded", p.name, p.hand)
+		g.say(fmt.Sprintf("%s: %v fits nowhere, discarded", p.name, p.hand))
 	}
 	for {
 		c, ok := p.supply.Draw()
@@ -83,7 +97,7 @@ func (g *game) refill(p *player) {
 			p.hand, p.hasHand = c, true
 			return
 		}
-		g.msg = fmt.Sprintf("%s: drawn %v fits nowhere, discarded", p.name, c)
+		g.say(fmt.Sprintf("%s: drawn %v fits nowhere, discarded", p.name, c))
 	}
 }
 
@@ -107,7 +121,8 @@ func (g *game) place(h hex.Hex) error {
 	if err := g.board.PlaceChip(h, p.hand, g.turn); err != nil {
 		return err
 	}
-	g.last = g.lastPlacement(g.turn, g.board.LastGains())
+	g.moves = append([]move{{g.turn, p.hand, g.board.LastGains()}}, g.moves...)
+	g.moves = g.moves[:min(len(g.moves), logLen)]
 	p.hasHand = false
 	g.refill(p)
 	g.nextTurn()
@@ -123,6 +138,9 @@ func (g *game) Update() error {
 		}
 		return nil
 	}
+	if g.msgT > 0 {
+		g.msgT--
+	}
 	x, y := ebiten.CursorPosition()
 	g.hover = g.layout.PixelToHex(float64(x), float64(y))
 	if g.over {
@@ -132,7 +150,6 @@ func (g *game) Update() error {
 	if p.computer {
 		if g.wait--; g.wait <= 0 {
 			free := g.board.FreeSpaces(p.hand.Piece)
-			g.msg = ""
 			if err := g.place(free[g.rng.IntN(len(free))]); err != nil {
 				return err // refill guarantees a free space
 			}
@@ -142,9 +159,8 @@ func (g *game) Update() error {
 	if !inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) || g.board.Tiles[g.hover] == nil {
 		return nil
 	}
-	g.msg = ""
 	if err := g.place(g.hover); err != nil {
-		g.msg = fmt.Sprintf("cannot place %v: %v", p.hand, err)
+		g.say(fmt.Sprintf("Cannot place %v: %v", p.hand, err))
 	}
 	return nil
 }
@@ -152,30 +168,89 @@ func (g *game) Update() error {
 func (g *game) Draw(screen *ebiten.Image) {
 	screen.Fill(render.Background)
 	render.DrawBoard(screen, g.board, g.layout)
+	f := g.hud.Font
 	if g.players == nil {
-		ebitenutil.DebugPrint(screen, fmt.Sprintf(
-			"Choose the number of players: press 1-%d (you + computer players)", maxPlayers))
+		render.DrawBanner(screen, fmt.Sprintf("Press 1-%d to choose the number of players (you + computer players)", maxPlayers),
+			1.2*f, float64(g.w)/2, float64(g.h)/2, float64(g.w)-2*g.hud.Gap, 1)
 		return
 	}
 	p := g.players[g.turn]
 	if !g.over && !p.computer && g.board.Tiles[g.hover] != nil {
 		render.DrawHover(screen, g.layout, g.hover, p.hand.Piece, g.board.CanPlace(g.hover, p.hand.Piece) == nil)
 	}
-	head := fmt.Sprintf("%s is placing %v ...", p.name, p.hand)
-	if !p.computer {
-		head = fmt.Sprintf("Your tile: %v  (left click to place; %d left in supply)", p.hand, p.supply.Len())
+	for i := range g.players {
+		render.DrawPanel(screen, g.hud.Panels[i], f, g.panel(i))
 	}
-	pts := "Points"
+	render.DrawLog(screen, g.hud.Log, f, g.logEntries())
+	// messages at the bottom, centered between the two bottom panels
+	l, r := g.hud.Panels[0], g.hud.Panels[3]
+	cx, cy, mw := (l.X+l.W+r.X)/2, l.Y+l.H-2*f, r.X-l.X-l.W-2*g.hud.Gap
+	switch {
+	case g.over:
+		render.DrawBanner(screen, strings.TrimSpace("Game over. "+g.winner()), 1.2*f, cx, cy, mw, 1)
+	case g.msgT > 0:
+		render.DrawBanner(screen, g.msg, f, cx, cy, mw, min(1, float32(g.msgT)/60))
+	}
+}
+
+// panel collects what the corner panel of player i shows.
+func (g *game) panel(i int) render.Panel {
+	q, sc := g.players[i], g.board.Score(i)
+	pn := render.Panel{
+		Player: i, Name: q.name, Active: !g.over && i == g.turn,
+		Points: sc.Total(), Label: "points",
+		Detail: []string{
+			fmt.Sprintf("placed %d · castles %d · open %d", sc.Placed, sc.Castles, sc.OpenSettlements),
+			fmt.Sprintf("%d tiles in supply", q.supply.Len()),
+		},
+	}
 	if g.over {
-		head, pts = "Game over: all tiles placed. "+g.winner(), "Final score"
+		pn.Label = "final score"
 	}
-	lines := []string{head}
-	for i, q := range g.players {
-		sc := g.board.Score(i)
-		lines = append(lines, fmt.Sprintf("%-10s (%s): %s %3d  (placed %d, castles %d, open settlements %d; %d in supply)",
-			q.name, render.PlayerColorNames[i], pts, sc.Total(), sc.Placed, sc.Castles, sc.OpenSettlements, q.supply.Len()))
+	if q.hasHand && !g.over && (!q.computer || pn.Active) {
+		h := q.hand
+		pn.Hand = &h
 	}
-	ebitenutil.DebugPrint(screen, strings.Join(append(lines, g.last, g.msg), "\n"))
+	return pn
+}
+
+// logEntries describes the recent moves, e.g. head "You +9" with lines
+// "+1 harbor", "+8 medium settlement completed", "Computer 1: castle lost".
+func (g *game) logEntries() []render.LogEntry {
+	var out []render.LogEntry
+	for _, m := range g.moves {
+		own, lines, others := 0, []string{}, []int{}
+		for _, x := range m.gains {
+			if x.Player == m.player {
+				own += x.Points
+				lines = append(lines, reason(x))
+			} else if !slices.Contains(others, x.Player) {
+				others = append(others, x.Player)
+			}
+		}
+		for _, q := range others {
+			var rs []string
+			for _, x := range m.gains {
+				if x.Player == q {
+					rs = append(rs, reason(x))
+				}
+			}
+			lines = append(lines, g.players[q].name+": "+strings.Join(rs, ", "))
+		}
+		out = append(out, render.LogEntry{
+			Player: m.player, Chip: m.chip, Lines: lines,
+			Head: fmt.Sprintf("%s %+d", g.players[m.player].name, own),
+		})
+	}
+	return out
+}
+
+// reason formats one gain, e.g. "+8 medium settlement completed".
+func reason(x board.Gain) string {
+	if x.Points == 0 {
+		return x.Reason
+	}
+	return fmt.Sprintf("%+d %s", x.Points, x.Reason)
 }
 
 // winner names the player(s) with the most points. Tie-break by named
@@ -202,61 +277,12 @@ func (g *game) winner() string {
 	return names[0] + " wins."
 }
 
-// lastPlacement explains the points of the most recent placement by player
-// p, e.g. "Last placement (You): +9 = 1 (harbor) + 8 (medium settlement completed)",
-// followed by what other players got from it.
-func (g *game) lastPlacement(p int, gains []board.Gain) string {
-	if gains == nil {
-		return ""
-	}
-	order := []int{p}
-	for _, x := range gains {
-		if !slices.Contains(order, x.Player) {
-			order = append(order, x.Player)
-		}
-	}
-	var out []string
-	for _, q := range order {
-		var mine []board.Gain
-		for _, x := range gains {
-			if x.Player == q {
-				mine = append(mine, x)
-			}
-		}
-		out = append(out, g.players[q].name+" "+explain(mine))
-	}
-	return "Last placement: " + strings.Join(out, "; ")
-}
-
-// explain sums gains, e.g. "+9 = 1 (harbor) + 8 (medium settlement completed)".
-func explain(gains []board.Gain) string {
-	sum, parts, notes := 0, []string{}, []string{}
-	for _, g := range gains {
-		if g.Points == 0 {
-			notes = append(notes, g.Reason)
-			continue
-		}
-		sum += g.Points
-		parts = append(parts, fmt.Sprintf("%d (%s)", g.Points, g.Reason))
-	}
-	s := fmt.Sprintf("+%d", sum)
-	switch {
-	case len(parts) == 1:
-		s = "+" + parts[0]
-	case len(parts) > 1:
-		s += " = " + strings.Join(parts, " + ")
-	}
-	if len(notes) > 0 {
-		s += ", " + strings.Join(notes, ", ")
-	}
-	return s
-}
-
 // Layout uses the full window (resizable / maximizable) and refits the board.
 func (g *game) Layout(w, h int) (int, int) {
 	if w != g.w || h != g.h {
 		g.w, g.h = w, h
-		g.layout = render.FitLayout(g.board, w, h, 20)
+		g.hud = layout.NewHUD(float64(w), float64(h))
+		g.layout = layout.Fit(slices.Collect(maps.Keys(g.board.Tiles)), g.hud.Board, g.hud.Panels[:])
 	}
 	return w, h
 }

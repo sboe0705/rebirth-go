@@ -1,0 +1,79 @@
+package layout
+
+import (
+	"math"
+	"testing"
+
+	"github.com/sboe0705/rebirth-go/internal/hex"
+)
+
+func TestHUDRects(t *testing.T) {
+	w, h := 1024.0, 768.0
+	u := NewHUD(w, h)
+	win := Rect{0, 0, w, h}
+	all := append(u.Panels[:], u.Log, u.Board)
+	for i, r := range all {
+		if r.X < 0 || r.Y < 0 || r.X+r.W > win.W || r.Y+r.H > win.H || r.W <= 0 || r.H <= 0 {
+			t.Fatalf("rect %d %v outside window", i, r)
+		}
+	}
+	for i := range all {
+		for j := i + 1; j < len(all); j++ {
+			// the board area may overlap the left panels (Fit avoids them)
+			if i < 2 && j == len(all)-1 {
+				continue
+			}
+			if all[i].Overlaps(all[j]) {
+				t.Fatalf("rects %d %v and %d %v overlap", i, all[i], j, all[j])
+			}
+		}
+	}
+	if u.Log.Y <= u.Panels[2].Y || u.Log.Y+u.Log.H >= u.Panels[3].Y {
+		t.Fatalf("log %v not between right panels", u.Log)
+	}
+}
+
+func hexagon(radius int) []hex.Hex {
+	var hs []hex.Hex
+	for q := -radius; q <= radius; q++ {
+		for r := -radius; r <= radius; r++ {
+			if s := -q - r; s >= -radius && s <= radius {
+				hs = append(hs, hex.Hex{Q: q, R: r})
+			}
+		}
+	}
+	return hs
+}
+
+func TestFitWithoutObstacles(t *testing.T) {
+	hs := hexagon(3) // corners span 7*sqrt(3) ≈ 12.1 sizes wide, 11 high
+	area := Rect{10, 20, 1000, 500}
+	l := Fit(hs, area, nil)
+	if want := 500.0 / 11; math.Abs(l.Size-want) > 1e-9 {
+		t.Fatalf("size %v, want %v", l.Size, want)
+	}
+	if x, y := l.HexToPixel(hex.Hex{}); math.Abs(x-510) > 1e-9 || math.Abs(y-270) > 1e-9 {
+		t.Fatalf("center at %v,%v, want 510,270", x, y)
+	}
+}
+
+func TestFitAvoidsRects(t *testing.T) {
+	hs := hexagon(3)
+	area := Rect{0, 0, 600, 600}
+	free := Fit(hs, area, nil)
+	block := Rect{0, 0, 140, 120} // top-left corner, partly hit by the big board
+	l := Fit(hs, area, []Rect{block})
+	if l.Size >= free.Size {
+		t.Fatalf("size %v not smaller than %v", l.Size, free.Size)
+	}
+	if l.Size < free.Size/2 {
+		t.Fatalf("size %v shrank too much (free %v)", l.Size, free.Size)
+	}
+	hw := l.Size * math.Sqrt(3) / 2
+	for _, h := range hs {
+		x, y := l.HexToPixel(h)
+		if (Rect{x - hw, y - l.Size, 2 * hw, 2 * l.Size}).Overlaps(block) {
+			t.Fatalf("hex %v overlaps the blocked rect", h)
+		}
+	}
+}

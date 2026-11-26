@@ -44,7 +44,6 @@ var (
 		{0xf5, 0xb0, 0x00, 0xff}, // yellow
 		{0x15, 0x80, 0x3d, 0xff}, // green
 	}
-	PlayerColorNames = []string{"blue", "red", "yellow", "green"}
 )
 
 // pieceScale is the size of a placed tile relative to its space.
@@ -52,25 +51,6 @@ const pieceScale = 0.7
 
 // castleIconScale is the half-size of the castle icon relative to its space.
 const castleIconScale = 0.6
-
-// FitLayout computes a layout that fits the board centered into w×h pixels.
-func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
-	unit := layout.Layout{Size: 1}
-	minX, minY := math.Inf(1), math.Inf(1)
-	maxX, maxY := math.Inf(-1), math.Inf(-1)
-	for hx := range b.Tiles {
-		for _, c := range unit.Corners(hx) {
-			minX, maxX = math.Min(minX, c[0]), math.Max(maxX, c[0])
-			minY, maxY = math.Min(minY, c[1]), math.Max(maxY, c[1])
-		}
-	}
-	size := math.Min((float64(w)-2*margin)/(maxX-minX), (float64(h)-2*margin)/(maxY-minY))
-	return layout.Layout{
-		Size:    size,
-		OriginX: float64(w)/2 - size*(minX+maxX)/2,
-		OriginY: float64(h)/2 - size*(minY+maxY)/2,
-	}
-}
 
 // DrawBoard draws all tiles as filled hexagons with a border. Settlement
 // spaces are drawn last so their edges stay on top.
@@ -89,18 +69,7 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			cx, cy, sz := float32(x), float32(y), float32(l.Size)
 			switch {
 			case t.Piece != board.NoPiece:
-				// Placed tiles are filled with the owner's colour.
-				pc := PlayerColors[t.Owner]
-				drawHex(dst, l, h, pieceScale, pc, borderCol)
-				ic := iconOnPiece
-				if isLight(pc) {
-					ic = borderCol // a white icon is hard to see on a light tile
-				}
-				if t.Piece == board.SettlementTile {
-					drawHouses(dst, t.Houses, cx, cy, 0.35*sz, ic)
-				} else {
-					drawPieceIcon(dst, t.Piece, cx, cy, 0.35*sz, ic)
-				}
+				drawPiece(dst, l, h, board.Chip{Piece: t.Piece, Houses: t.Houses}, t.Owner)
 			case t.Bonus != board.NoBonus:
 				drawKindIcon(dst, t.Kind, cx, cy+0.15*sz, 0.4*sz, darker(kindCol[t.Kind]))
 				drawPlus(dst, cx, cy-0.55*sz, 0.15*sz, bonusCol)
@@ -118,6 +87,24 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 				drawKindIcon(dst, t.Kind, cx, cy, is, darker(kindCol[t.Kind]))
 			}
 		}
+	}
+}
+
+// drawPiece draws tile c of player owner on space h: filled with the
+// owner's colour, with a white icon (dark on light colours).
+func drawPiece(dst *ebiten.Image, l layout.Layout, h hex.Hex, c board.Chip, owner int) {
+	pc := PlayerColors[owner]
+	drawHex(dst, l, h, pieceScale, pc, borderCol)
+	ic := iconOnPiece
+	if isLight(pc) {
+		ic = borderCol // a white icon is hard to see on a light tile
+	}
+	x, y := l.HexToPixel(h)
+	cx, cy, s := float32(x), float32(y), 0.35*float32(l.Size)
+	if c.Piece == board.SettlementTile {
+		drawHouses(dst, c.Houses, cx, cy, s, ic)
+	} else {
+		drawPieceIcon(dst, c.Piece, cx, cy, s, ic)
 	}
 }
 
