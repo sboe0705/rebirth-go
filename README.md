@@ -1,7 +1,7 @@
 # rebirth-go
 
 PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
-Current state: hex board loaded from a map file; facilities can be placed (single player, no scoring yet).
+Current state: hex board loaded from a map file; facilities and settlement tiles can be placed (single player, no scoring yet).
 
 ## Requirements
 
@@ -28,12 +28,12 @@ go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt
 
 | Input | Action |
 |---|---|
-| Left click | place the selected facility on the space |
-| `F` / `E` / right click | select food / energy facility, right click toggles |
+| Left click | place the selected tile on the space |
+| `F` / `E` / `S` / right click | select food facility / energy facility / settlement tile, right click cycles |
 
-Food facilities go on empty or food spaces, energy facilities on empty or energy spaces; one tile per space.
-The hovered space shows a preview, or a red outline if the facility is not allowed there.
-Facility tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt.
+Food facilities go on empty or food spaces, energy facilities on empty or energy spaces, settlement tiles on settlement spaces; one tile per space.
+The hovered space shows a preview, or a red outline if the tile is not allowed there.
+Placed tiles are drawn as smaller hexagons with a white icon: food `#2e6b1f` dark green with leaf, energy `#d9822b` orange with lightning bolt, settlement `#b0302a` red with house.
 Space icons are drawn in a darker shade (55 %) of the space color.
 
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.

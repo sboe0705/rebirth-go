@@ -43,12 +43,14 @@ func drawKindIcon(dst *ebiten.Image, k board.Kind, x, y, s float32, c color.Colo
 	}
 }
 
-func drawFacilityIcon(dst *ebiten.Image, f board.Facility, x, y, s float32, c color.Color) {
+func drawPieceIcon(dst *ebiten.Image, f board.Piece, x, y, s float32, c color.Color) {
 	switch f {
 	case board.FoodFacility:
 		drawLeaf(dst, x, y, s, c)
 	case board.EnergyFacility:
 		fillPoly(dst, boltIcon, x, y, s, c)
+	case board.SettlementTile:
+		fillPoly(dst, houseIcon, x, y, s, c)
 	}
 }
 

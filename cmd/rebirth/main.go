@@ -20,7 +20,7 @@ const screenW, screenH = 1024, 768
 type game struct {
 	board    *board.Board
 	layout   layout.Layout
-	selected board.Facility // facility placed by the next left click
+	selected board.Piece // piece placed by the next left click
 	hover    hex.Hex
 	msg      string
 }
@@ -31,12 +31,10 @@ func (g *game) Update() error {
 		g.selected = board.FoodFacility
 	case inpututil.IsKeyJustPressed(ebiten.KeyE):
 		g.selected = board.EnergyFacility
+	case inpututil.IsKeyJustPressed(ebiten.KeyS):
+		g.selected = board.SettlementTile
 	case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonRight):
-		if g.selected == board.FoodFacility {
-			g.selected = board.EnergyFacility
-		} else {
-			g.selected = board.FoodFacility
-		}
+		g.selected = g.selected%board.SettlementTile + 1 // cycle food -> energy -> settlement
 	}
 	x, y := ebiten.CursorPosition()
 	g.hover = g.layout.PixelToHex(float64(x), float64(y))
@@ -56,7 +54,7 @@ func (g *game) Draw(screen *ebiten.Image) {
 	if g.board.Tiles[g.hover] != nil {
 		render.DrawHover(screen, g.layout, g.hover, g.selected, g.board.CanPlace(g.hover, g.selected) == nil)
 	}
-	ebitenutil.DebugPrint(screen, fmt.Sprintf("Selected: %v  (F / E or right click to switch, left click to place)\n%s", g.selected, g.msg))
+	ebitenutil.DebugPrint(screen, fmt.Sprintf("Selected: %v  (F / E / S or right click to switch, left click to place)\n%s", g.selected, g.msg))
 }
 
 func (g *game) Layout(_, _ int) (int, int) { return screenW, screenH }

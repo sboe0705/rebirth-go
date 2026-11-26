@@ -27,16 +27,17 @@ var (
 		board.Cathedral:  {0x8a, 0x5a, 0xa8, 0xff},
 		board.RoundTower: {0xd8, 0xa0, 0x30, 0xff},
 	}
-	facilityCol = map[board.Facility]color.RGBA{
+	pieceCol = map[board.Piece]color.RGBA{
 		board.FoodFacility:   {0x2e, 0x6b, 0x1f, 0xff},
 		board.EnergyFacility: {0xd9, 0x82, 0x2b, 0xff},
+		board.SettlementTile: {0xb0, 0x30, 0x2a, 0xff},
 	}
-	invalidCol     = color.RGBA{0xe0, 0x30, 0x30, 0xff}
-	iconOnFacility = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	invalidCol  = color.RGBA{0xe0, 0x30, 0x30, 0xff}
+	iconOnPiece = color.RGBA{0xff, 0xff, 0xff, 0xff}
 )
 
-// facilityScale is the size of a facility tile relative to its space.
-const facilityScale = 0.7
+// pieceScale is the size of a placed tile relative to its space.
+const pieceScale = 0.7
 
 // FitLayout computes a layout that fits the board centered into w×h pixels.
 func FitLayout(b *board.Board, w, h int, margin float64) layout.Layout {
@@ -73,9 +74,9 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			x, y := l.HexToPixel(h)
 			cx, cy, sz := float32(x), float32(y), float32(l.Size)
 			switch {
-			case t.Facility != board.NoFacility:
-				drawHex(dst, l, h, facilityScale, facilityCol[t.Facility], borderCol)
-				drawFacilityIcon(dst, t.Facility, cx, cy, 0.35*sz, iconOnFacility)
+			case t.Piece != board.NoPiece:
+				drawHex(dst, l, h, pieceScale, pieceCol[t.Piece], borderCol)
+				drawPieceIcon(dst, t.Piece, cx, cy, 0.35*sz, iconOnPiece)
 			case t.Bonus:
 				drawKindIcon(dst, t.Kind, cx, cy+0.15*sz, 0.4*sz, darker(kindCol[t.Kind]))
 				drawPlus(dst, cx, cy-0.55*sz, 0.15*sz, bonusCol)
@@ -87,15 +88,15 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 }
 
 // DrawHover marks the space under the cursor: a translucent preview of
-// facility f if it can be placed there, otherwise a red outline.
-func DrawHover(dst *ebiten.Image, l layout.Layout, h hex.Hex, f board.Facility, ok bool) {
+// piece f if it can be placed there, otherwise a red outline.
+func DrawHover(dst *ebiten.Image, l layout.Layout, h hex.Hex, f board.Piece, ok bool) {
 	if !ok {
 		drawHex(dst, l, h, 1, nil, invalidCol)
 		return
 	}
-	c := facilityCol[f]
+	c := pieceCol[f]
 	c.R, c.G, c.B, c.A = c.R/2, c.G/2, c.B/2, 0x80 // premultiplied alpha
-	drawHex(dst, l, h, facilityScale, c, borderCol)
+	drawHex(dst, l, h, pieceScale, c, borderCol)
 }
 
 // drawHex draws hexagon h scaled around its center; a nil fill draws only the border.

@@ -39,7 +39,7 @@ type Tile struct {
 	Bonus bool            // "+1" settlement space: harbour (Scotland) or wind collector (Ireland)
 	Area  *SettlementArea // settlement this space belongs to; nil unless Kind == Settlement
 
-	Facility Facility // placed facility tile, NoFacility if none
+	Piece Piece // placed facility tile, NoPiece if none
 }
 
 // MaxSettlementSize is the largest settlement: the extra-large one in Ireland.
