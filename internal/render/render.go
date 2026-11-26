@@ -77,7 +77,7 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			case t.Piece != board.NoPiece:
 				drawHex(dst, l, h, pieceScale, pieceCol[t.Piece], borderCol)
 				drawPieceIcon(dst, t.Piece, cx, cy, 0.35*sz, iconOnPiece)
-			case t.Bonus:
+			case t.Bonus != board.NoBonus:
 				drawKindIcon(dst, t.Kind, cx, cy+0.15*sz, 0.4*sz, darker(kindCol[t.Kind]))
 				drawPlus(dst, cx, cy-0.55*sz, 0.15*sz, bonusCol)
 			default:

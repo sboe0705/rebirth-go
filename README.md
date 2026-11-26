@@ -41,12 +41,12 @@ Space icons are drawn in a darker shade (55 %) of the space color.
 
 The top left shows the points as if the game ended now:
 - **placed** – scored when placing: a facility scores the size of its group (adjacent tiles of the same type),
-  a "+1" space scores 1, a completed settlement scores small = houses, medium 5+3, large 8+5, extra-large 12+8+5.
+  a harbor or wind collector scores 1, a completed settlement scores small = houses, medium 5+3, large 8+5, extra-large 12+8+5.
 - **castles** – 5 per castle with at least one adjacent tile (no opponents, so no majority yet).
 - **open settlements** – houses on tiles in incomplete settlements.
 
 The line below explains the most recent placement, e.g.
-`Last placement: +9 = 1 ("+1" space) + 8 (medium settlement completed)` or
+`Last placement: +9 = 1 (harbor) + 8 (medium settlement completed)` or
 `Last placement: +3 (food facility group of 3); castle controlled (5 at game end)`.
 
 Not scored: cathedral mission cards, round tower bonuses. Each settlement tile counts as 1 house for now.
@@ -70,7 +70,8 @@ Space kinds follow the Rebirth rules (Scotland and Ireland boards):
 | `C` | castle space (no tiles) | `#707078` grey | battlements |
 | `K` | cathedral space (no tiles, Scotland) | `#8a5aa8` purple | cross |
 | `R` | round tower space (no tiles, Ireland) | `#d8a030` amber | tower |
-| `s` | settlement space with "+1" (harbour in Scotland, wind collector in Ireland) | `#c0845a` brown | house + white plus `#ffffff` |
+| `s` | settlement space with harbor ("+1") | `#c0845a` brown | house + white plus `#ffffff` |
+| `o` / `f` / `e` | empty / food / energy space with wind collector ("+1") | as `O` / `F` / `E` | white plus `#ffffff` |
 | `.` / space | no space (water / off-board) | sea background `#2b5d8a` | – |
 
 ### Settlements
@@ -80,7 +81,8 @@ Size = number of spaces: 1 small, 2 medium, 3 large, 4 extra-large (Ireland); mo
 Settlement spaces are drawn with white edges (`#ffffff`).
 
 Map rules (checked when loading and for random maps):
-- at most one "+1" space (`s`) per settlement,
+- harbors and wind collectors are only at the coast (space next to water),
+- harbors only on settlement spaces, at most one per settlement; wind collectors never on settlement spaces,
 - castles, cathedrals and round towers (`C`/`K`/`R`) are never adjacent to each other.
 
 Not yet modelled: castle/cathedral names, 2-player blocked spaces.
@@ -91,8 +93,8 @@ New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in
 
 `board.Random(seed, board.DefaultRandom)` (`internal/board/random.go`) builds a board of 100 spaces:
 a compact random shape, 4 castles and 3 cathedrals at least 3 spaces apart,
-8 settlements (sizes 1,1,1,2,2,2,3,3) that never touch each other, 3 "+1" spaces in different
-settlements (preferably at the coast), and the rest randomly empty, food or energy.
+8 settlements (sizes 1,1,1,2,2,2,3,3) that never touch each other, the rest randomly empty, food or energy,
+3 harbors in different settlements and 3 wind collectors, all at the coast.
 The same seed always gives the same map.
 
 ## Structure

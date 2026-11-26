@@ -39,7 +39,7 @@ type Gain struct {
 var settlementNames = map[int]string{1: "small", 2: "medium", 3: "large", 4: "extra-large"}
 
 // placeGains returns the points for the piece just placed at h:
-// facilities score the size of their group, a "+1" space scores 1, and a
+// facilities score the size of their group, a harbor or wind collector scores 1, and a
 // completed settlement scores its value.
 // A newly controlled castle is listed with 0 points (it scores at game end).
 func (b *Board) placeGains(h hex.Hex) []Gain {
@@ -67,11 +67,15 @@ func (b *Board) pieceGains(h hex.Hex) []Gain {
 	switch t.Piece {
 	case FoodFacility, EnergyFacility:
 		n := b.groupSize(h)
-		return []Gain{{n, fmt.Sprintf("%v group of %d", t.Piece, n)}}
+		g := []Gain{{n, fmt.Sprintf("%v group of %d", t.Piece, n)}}
+		if t.Bonus != NoBonus {
+			g = append(g, Gain{1, t.Bonus.String()})
+		}
+		return g
 	case SettlementTile:
 		var g []Gain
-		if t.Bonus {
-			g = append(g, Gain{1, `"+1" space`})
+		if t.Bonus != NoBonus {
+			g = append(g, Gain{1, t.Bonus.String()})
 		}
 		if a := t.Area; b.complete(a) {
 			p := completedSettlementPoints[a.Size()]

@@ -9,27 +9,29 @@ import (
 
 // RandomOptions controls the random map generator.
 type RandomOptions struct {
-	Spaces      int // number of land spaces
-	Castles     int
-	Cathedrals  int
-	RoundTowers int
-	Settlements []int // size of each settlement (1..MaxSettlementSize)
-	Bonus       int   // settlement spaces with "+1", preferably at the coast
+	Spaces         int // number of land spaces
+	Castles        int
+	Cathedrals     int
+	RoundTowers    int
+	Settlements    []int // size of each settlement (1..MaxSettlementSize)
+	Harbors        int   // coastal settlement spaces, each in a different settlement
+	WindCollectors int   // coastal empty, food or energy spaces
 }
 
 // DefaultRandom is a medium-sized board similar to the example map.
 var DefaultRandom = RandomOptions{
-	Spaces:      100,
-	Castles:     4,
-	Cathedrals:  3,
-	Settlements: []int{1, 1, 1, 2, 2, 2, 3, 3},
-	Bonus:       3,
+	Spaces:         100,
+	Castles:        4,
+	Cathedrals:     3,
+	Settlements:    []int{1, 1, 1, 2, 2, 2, 3, 3},
+	Harbors:        3,
+	WindCollectors: 3,
 }
 
 // Random generates a board from seed; the same seed gives the same board.
 // Special spaces are at least 3 apart, separate settlements never touch,
-// each settlement has at most one "+1" space, all other spaces are empty,
-// food or energy.
+// harbors (at most one per settlement) and wind collectors are at the coast,
+// all other spaces are empty, food or energy.
 func Random(seed uint64, o RandomOptions) (*Board, error) {
 	rng := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
 	b := &Board{Name: fmt.Sprintf("random-%d", seed), Tiles: map[hex.Hex]*Tile{}}
@@ -89,6 +91,9 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		}
 		return true
 	}
+	if o.Harbors > len(o.Settlements) {
+		return nil, fmt.Errorf("%d harbors but only %d settlements", o.Harbors, len(o.Settlements))
+	}
 	for id, size := range o.Settlements {
 		if size < 1 || size > MaxSettlementSize {
 			return nil, fmt.Errorf("invalid settlement size %d", size)
@@ -96,7 +101,8 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		placed := false
 		for try := 0; try < 1000 && !placed; try++ {
 			start := order[rng.IntN(len(order))]
-			if !free(start, id) {
+			// The first settlements start at the coast so each can get a harbor.
+			if !free(start, id) || (id < o.Harbors && !b.Coast(start)) {
 				continue
 			}
 			spaces := []hex.Hex{start}
@@ -137,39 +143,36 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		return nil, err
 	}
 
-	// "+1": at most one per settlement, coastal settlement spaces first.
-	var coast, inland []hex.Hex
-	for _, h := range order {
-		if b.Tiles[h].Kind != Settlement {
-			continue
-		}
-		if landNeighbors(b, h) < 6 {
-			coast = append(coast, h)
-		} else {
-			inland = append(inland, h)
-		}
-	}
-	rng.Shuffle(len(coast), func(i, j int) { coast[i], coast[j] = coast[j], coast[i] })
-	rng.Shuffle(len(inland), func(i, j int) { inland[i], inland[j] = inland[j], inland[i] })
-	hasBonus := map[*SettlementArea]bool{}
-	for _, h := range append(coast, inland...) {
-		if len(hasBonus) == o.Bonus {
-			break
-		}
-		if t := b.Tiles[h]; !hasBonus[t.Area] {
-			t.Bonus = true
-			hasBonus[t.Area] = true
-		}
-	}
-	if len(hasBonus) < o.Bonus {
-		return nil, fmt.Errorf("%d \"+1\" spaces but only %d settlements", o.Bonus, len(b.Settlements))
-	}
-
 	// Remaining spaces: empty, food or energy.
 	for _, h := range order {
 		if t := b.Tiles[h]; t.Kind == Empty {
 			t.Kind = [...]Kind{Empty, Empty, Food, Food, Energy, Energy, Empty}[rng.IntN(7)]
 		}
+	}
+
+	// Harbors (one per settlement) and wind collectors, both at the coast.
+	var coast []hex.Hex
+	for _, h := range order {
+		if b.Coast(h) && b.Tiles[h].Kind.Buildable() {
+			coast = append(coast, h)
+		}
+	}
+	rng.Shuffle(len(coast), func(i, j int) { coast[i], coast[j] = coast[j], coast[i] })
+	hasHarbor := map[*SettlementArea]bool{}
+	harbors, winds := 0, 0
+	for _, h := range coast {
+		switch t := b.Tiles[h]; {
+		case t.Kind == Settlement && harbors < o.Harbors && !hasHarbor[t.Area]:
+			t.Bonus = Harbor
+			hasHarbor[t.Area] = true
+			harbors++
+		case t.Kind != Settlement && winds < o.WindCollectors:
+			t.Bonus = WindCollector
+			winds++
+		}
+	}
+	if harbors < o.Harbors || winds < o.WindCollectors {
+		return nil, fmt.Errorf("no room for %d harbors and %d wind collectors at the coast", o.Harbors, o.WindCollectors)
 	}
 
 	return b, b.validate()

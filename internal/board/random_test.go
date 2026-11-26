@@ -30,18 +30,23 @@ func TestRandomValid(t *testing.T) {
 			t.Fatalf("seed %d: %d spaces", seed, len(b.Tiles))
 		}
 		count := map[Kind]int{}
-		bonus := 0
+		bonus := map[Bonus]int{}
 		var specials []hex.Hex
 		for h, tl := range b.Tiles {
 			count[tl.Kind]++
-			if tl.Bonus {
-				bonus++
+			bonus[tl.Bonus]++
+			if tl.Bonus != NoBonus && !b.Coast(h) {
+				t.Fatalf("seed %d: %v at %v not at the coast", seed, tl.Bonus, h)
+			}
+			if (tl.Bonus == Harbor) != (tl.Bonus != NoBonus && tl.Kind == Settlement) {
+				t.Fatalf("seed %d: %v on %v space", seed, tl.Bonus, tl.Kind)
 			}
 			if tl.Kind > Settlement {
 				specials = append(specials, h)
 			}
 		}
-		if count[Castle] != o.Castles || count[Cathedral] != o.Cathedrals || bonus != o.Bonus {
+		if count[Castle] != o.Castles || count[Cathedral] != o.Cathedrals ||
+			bonus[Harbor] != o.Harbors || bonus[WindCollector] != o.WindCollectors {
 			t.Fatalf("seed %d: counts %v, bonus %d", seed, count, bonus)
 		}
 		for i, s := range specials {
@@ -54,9 +59,9 @@ func TestRandomValid(t *testing.T) {
 		}
 		hasBonus := map[*SettlementArea]bool{}
 		for _, tl := range b.Tiles {
-			if tl.Bonus {
+			if tl.Bonus == Harbor {
 				if hasBonus[tl.Area] {
-					t.Fatalf("seed %d: settlement with two \"+1\" spaces", seed)
+					t.Fatalf("seed %d: settlement with two harbors", seed)
 				}
 				hasBonus[tl.Area] = true
 			}
