@@ -312,6 +312,21 @@ func (b *Board) sortedHexes() []hex.Hex {
 	return hs
 }
 
+// Clone returns a copy of b that can be played on without changing b,
+// e.g. to try out a placement. Settlement areas are shared; they never change.
+func (b *Board) Clone() *Board {
+	c := *b
+	c.Tiles = make(map[hex.Hex]*Tile, len(b.Tiles))
+	for h, t := range b.Tiles {
+		tc := *t
+		c.Tiles[h] = &tc
+	}
+	c.points = maps.Clone(b.points)
+	c.castles = maps.Clone(b.castles)
+	c.lastGains = slices.Clone(b.lastGains)
+	return &c
+}
+
 // Coast reports whether h is a space next to water (fewer than 6 neighbors).
 func (b *Board) Coast(h hex.Hex) bool { return b.Tiles[h] != nil && landNeighbors(b, h) < 6 }
 

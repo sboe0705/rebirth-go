@@ -13,6 +13,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 
+	"github.com/sboe0705/rebirth-go/internal/ai"
 	"github.com/sboe0705/rebirth-go/internal/board"
 	"github.com/sboe0705/rebirth-go/internal/hex"
 	"github.com/sboe0705/rebirth-go/internal/layout"
@@ -27,7 +28,7 @@ const (
 	logLen           = 8   // moves shown in the log
 )
 
-// player is the user (index 0) or a computer player placing at random.
+// player is the user (index 0) or a computer player.
 type player struct {
 	name     string
 	computer bool
@@ -49,6 +50,7 @@ type game struct {
 	hud     layout.HUD
 	w, h    int // current screen size; the layout is refitted when it changes
 	seed    uint64
+	level   ai.Level   // computer players' strength, chosen on the start screen
 	rng     *rand.Rand // computer players' choices
 	players []*player  // nil until the number of players is chosen
 	turn    int        // index of the player to move
@@ -132,6 +134,11 @@ func (g *game) place(h hex.Hex) error {
 
 func (g *game) Update() error {
 	if g.players == nil {
+		for l, k := range map[ai.Level]ebiten.Key{ai.Easy: ebiten.KeyE, ai.Normal: ebiten.KeyN, ai.Hard: ebiten.KeyH} {
+			if inpututil.IsKeyJustPressed(k) {
+				g.level = l
+			}
+		}
 		for n := 1; n <= maxPlayers; n++ {
 			if inpututil.IsKeyJustPressed(ebiten.Key1 + ebiten.Key(n-1)) {
 				g.start(n)
@@ -150,8 +157,7 @@ func (g *game) Update() error {
 	p := g.players[g.turn]
 	if p.computer {
 		if g.wait--; g.wait <= 0 {
-			free := g.board.FreeSpaces(p.hand.Piece)
-			if err := g.place(free[g.rng.IntN(len(free))]); err != nil {
+			if err := g.place(ai.Choose(g.board, p.hand, g.turn, g.level, g.rng)); err != nil {
 				return err // refill guarantees a free space
 			}
 		}
@@ -171,7 +177,8 @@ func (g *game) Draw(screen *ebiten.Image) {
 	render.DrawBoard(screen, g.board, g.layout)
 	f := g.hud.Font
 	if g.players == nil {
-		render.DrawBanner(screen, fmt.Sprintf("Press 1-%d to choose the number of players (you + computer players)", maxPlayers),
+		render.DrawBanner(screen, fmt.Sprintf("Computer players: %v (press E, N or H for easy, normal or hard). "+
+			"Press 1-%d to choose the number of players (you + computer players)", g.level, maxPlayers),
 			1.2*f, float64(g.w)/2, float64(g.h)/2, float64(g.w)-2*g.hud.Gap, 1)
 		return
 	}
@@ -204,6 +211,9 @@ func (g *game) panel(i int) render.Panel {
 			fmt.Sprintf("placed %d · castles %d · open %d", sc.Placed, sc.Castles, sc.OpenSettlements),
 			fmt.Sprintf("%d tiles in supply", q.supply.Len()),
 		},
+	}
+	if q.computer {
+		pn.Detail[1] += " · " + g.level.String()
 	}
 	if g.over {
 		pn.Label = "final score"
@@ -292,17 +302,21 @@ func main() {
 	mapName := flag.String("map", "random", `"random", name of an embedded map (internal/board/maps/<name>.txt) or path to a map file (contains "/" or ends in ".txt")`)
 	seed := flag.Uint64("seed", 0, "seed for the random map, the tile order and the computer moves (0 = new random seed)")
 	players := flag.Int("players", 0, fmt.Sprintf("number of players 1-%d: you + computer players (0 = choose at start)", maxPlayers))
+	level := flag.String("level", "normal", "computer players: easy (random), normal (most points now) or hard (for now like easy)")
 	lax := flag.Bool("lax", false, "also load maps that break the map rules; the problems are printed as warnings")
 	flag.Parse()
 
 	if *players < 0 || *players > maxPlayers {
 		log.Fatalf("-players must be between 0 and %d", maxPlayers)
 	}
+	lvl, err := ai.ParseLevel(*level)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if *seed == 0 {
 		*seed = rand.Uint64()
 	}
 	var b *board.Board
-	var err error
 	if *mapName == "random" {
 		b, err = board.Random(*seed, board.DefaultRandom)
 	} else if strings.ContainsRune(*mapName, filepath.Separator) || strings.Contains(*mapName, "/") || strings.HasSuffix(*mapName, ".txt") {
@@ -323,7 +337,7 @@ func main() {
 		title += fmt.Sprintf(" (seed %d)", *seed)
 	}
 	ebiten.SetWindowTitle(title)
-	g := &game{board: b, seed: *seed}
+	g := &game{board: b, seed: *seed, level: lvl}
 	if *players > 0 {
 		g.start(*players)
 	}

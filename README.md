@@ -1,7 +1,7 @@
 # rebirth-go
 
 PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
-Current state: 1–4 players – you against up to 3 computer players that place their tiles at random. Tiles are drawn at random from shuffled supplies, with scoring.
+Current state: 1–4 players – you against up to 3 computer players (easy, normal or hard). Tiles are drawn at random from shuffled supplies, with scoring.
 
 ## Requirements
 
@@ -19,6 +19,7 @@ Current state: 1–4 players – you against up to 3 computer players that place
 go run ./cmd/rebirth                 # new random map on every start
 go run ./cmd/rebirth -seed 42        # reproduce a random map, tile order and computer moves (seed is shown in the window title)
 go run ./cmd/rebirth -players 3      # you + 2 computer players (default: choose 1-4 on the start screen)
+go run ./cmd/rebirth -level hard     # computer players: easy, normal (default) or hard
 go run ./cmd/rebirth -map <name>     # loads internal/board/maps/<name>.txt, e.g. -map example
 go run ./cmd/rebirth -map <file>     # loads a map file from anywhere, e.g. -map ~/maps/mine.txt
 go run ./cmd/rebirth -lax -map <m>   # also loads maps that break the map rules (problems are printed as warnings)
@@ -32,6 +33,7 @@ go run ./cmd/rebirth -lax -map <m>   # also loads maps that break the map rules 
 
 | Input | Action |
 |---|---|
+| E / N / H (start screen) | computer players easy / normal / hard |
 | 1–4 (start screen) | number of players: you + computer players |
 | Left click | on your turn: place your tile (shown top left) on the space |
 | Resize / maximize window | the board is refitted to the window |
@@ -48,11 +50,14 @@ The game ends when all supplies are empty; the points shown then are the final s
 ### Players (`cmd/rebirth/main.go`)
 
 You are player 1 (blue) and start; computer players (red, yellow, green) follow in turn order.
-A computer player places its tile on a random allowed space after a short pause.
+A computer player places its tile after a short pause (`internal/ai`); all computer players have the same level:
+- **easy** – a random allowed space,
+- **normal** – the space that raises its points (as if the game ended now, castles and open settlements included) the most with this tile; no planning ahead, ties at random,
+- **hard** – for now the same as easy.
 Placed tiles are filled with the owner's colour with a black border and a white icon (dark on yellow tiles); a controlled castle shows its icon in the owner's colour with a black outline.
 Not modelled: the 32 neutral tiles of the 2-player game and the castle tie-break for the winner (a tie is shared).
 
-Each player has a panel in a window corner (you bottom left, then clockwise): name, points, score parts, tiles left in supply,
+Each player has a panel in a window corner (you bottom left, then clockwise): name, points, score parts, tiles left in supply (and a computer player's level),
 and the tile in hand (yours always, a computer player's while it is placing). The player to move has a frame in their colour and a ▶ marker.
 The right column lists the last 8 moves between the two right panels; messages appear at the bottom.
 The board is fitted to the area left of that column without touching the panels (`internal/layout/hud.go`).
@@ -157,6 +162,7 @@ cmd/rebirth/        entry point, ebiten.Game, turns and computer players
 internal/hex/       axial coordinates, neighbors, distance, rounding (no pixels)
 internal/layout/    hex <-> pixel (pointy-top), corner points
 internal/board/     Tile/Board model, map loader, embedded maps
+internal/ai/        computer player strategies (no rendering)
 internal/render/    drawing with ebiten/v2/vector
 scripts/            build scripts
 ```

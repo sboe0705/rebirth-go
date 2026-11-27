@@ -130,3 +130,20 @@ func TestValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestClone(t *testing.T) {
+	b := placeAll(t, "OCOSS", 0, FoodFacility, 3, SettlementTile)
+	c := b.Clone()
+	if err := c.Place(hex.FromOffset(2, 0), EnergyFacility); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Place(hex.FromOffset(4, 0), SettlementTile); err != nil {
+		t.Fatal(err)
+	}
+	if b.Tiles[hex.FromOffset(2, 0)].Piece != NoPiece || b.Score(0) != (Score{Placed: 1, Castles: 5, OpenSettlements: 1}) {
+		t.Fatalf("original changed: %+v", b.Score(0))
+	}
+	if got := c.Score(0); got != (Score{Placed: 1 + 1 + 8, Castles: 5}) {
+		t.Fatalf("clone score %+v", got)
+	}
+}
