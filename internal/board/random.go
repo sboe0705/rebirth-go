@@ -1,50 +1,117 @@
 package board
 
 import (
+	"cmp"
 	"fmt"
 	"math/rand/v2"
+	"slices"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
 )
 
 // RandomOptions controls the random map generator.
 type RandomOptions struct {
-	Spaces         int // number of land spaces
+	Spaces         int // number of land spaces, islands included
 	Castles        int
 	Cathedrals     int
 	RoundTowers    int
 	Settlements    []int // size of each settlement (1..MaxSettlementSize)
 	Harbors        int   // coastal settlement spaces, each in a different settlement
 	WindCollectors int   // coastal empty, food or energy spaces
+	Food, Energy   int   // food and energy spaces; all other spaces are empty
+	SpecialGap     int   // minimum distance between castles, cathedrals and round towers (>= 2)
+	MaxIslands     int   // 0..MaxIslands islands besides the main land
+	IslandMin      int   // island size range
+	IslandMax      int
 }
 
-// DefaultRandom is a medium-sized board similar to the example map.
-var DefaultRandom = RandomOptions{
-	Spaces:         100,
-	Castles:        4,
-	Cathedrals:     3,
-	Settlements:    []int{1, 1, 1, 2, 2, 2, 3, 3},
-	Harbors:        3,
-	WindCollectors: 3,
+// DefaultRandom has the space counts of the Scotland map and up to 2 islands of 5-7 spaces.
+var DefaultRandom = func() RandomOptions {
+	b, err := Load("scotland")
+	if err != nil {
+		panic(err)
+	}
+	o := OptionsFrom(b)
+	o.MaxIslands, o.IslandMin, o.IslandMax = 2, 5, 7
+	return o
+}()
+
+// OptionsFrom returns options that reproduce the space counts of b:
+// spaces, special spaces, settlement sizes, harbors, wind collectors,
+// food and energy spaces. Islands are off; SpecialGap is 2.
+func OptionsFrom(b *Board) RandomOptions {
+	o := RandomOptions{Spaces: len(b.Tiles), SpecialGap: 2}
+	for _, t := range b.Tiles {
+		switch t.Kind {
+		case Castle:
+			o.Castles++
+		case Cathedral:
+			o.Cathedrals++
+		case RoundTower:
+			o.RoundTowers++
+		case Food:
+			o.Food++
+		case Energy:
+			o.Energy++
+		}
+		switch t.Bonus {
+		case Harbor:
+			o.Harbors++
+		case WindCollector:
+			o.WindCollectors++
+		}
+	}
+	for _, a := range b.Settlements {
+		o.Settlements = append(o.Settlements, a.Size())
+	}
+	// Largest first: they are the hardest to fit.
+	slices.SortFunc(o.Settlements, func(a, b int) int { return cmp.Compare(b, a) })
+	return o
 }
 
 // Random generates a board from seed; the same seed gives the same board.
-// Special spaces are at least 3 apart, separate settlements never touch,
-// harbors (at most one per settlement) and wind collectors are at the coast,
-// all other spaces are empty, food or energy.
+// Special spaces are at least SpecialGap apart, separate settlements never touch,
+// harbors (at most one per settlement) and wind collectors are at the coast.
+// Islands never touch the main land or each other.
+// A failed attempt is retried with the same random source.
 func Random(seed uint64, o RandomOptions) (*Board, error) {
 	rng := rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15))
-	b := &Board{Name: fmt.Sprintf("random-%d", seed), Tiles: map[hex.Hex]*Tile{}}
+	var err error
+	for try := 0; try < 100; try++ {
+		var b *Board
+		if b, err = randomBoard(rng, o); err == nil {
+			b.Name = fmt.Sprintf("random-%d", seed)
+			return b, nil
+		}
+	}
+	return nil, err
+}
+
+func randomBoard(rng *rand.Rand, o RandomOptions) (*Board, error) {
+	b := &Board{Tiles: map[hex.Hex]*Tile{}}
+
+	islands := make([]int, rng.IntN(o.MaxIslands+1))
+	main := o.Spaces
+	for i := range islands {
+		islands[i] = o.IslandMin + rng.IntN(o.IslandMax-o.IslandMin+1)
+		main -= islands[i]
+	}
 
 	// Shape: grow a blob from the origin. order keeps iteration deterministic.
 	order := []hex.Hex{{}}
 	b.Tiles[hex.Hex{}] = &Tile{Kind: Empty}
-	for len(order) < o.Spaces {
+	for len(order) < main {
 		h := order[rng.IntN(len(order))].Neighbor(rng.IntN(6))
 		// Requiring 2 land neighbors keeps the shape compact.
 		if b.Tiles[h] == nil && landNeighbors(b, h) >= min(2, len(order)) {
 			b.Tiles[h] = &Tile{Kind: Empty}
 			order = append(order, h)
+		}
+	}
+	for _, n := range islands {
+		var ok bool
+		if order, ok = addIsland(rng, b, order, n); !ok {
+			return nil, fmt.Errorf("no room for an island of %d spaces", n)
 		}
 	}
 
@@ -55,7 +122,7 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 			ok := false
 			for try := 0; try < 1000 && !ok; try++ {
 				h := order[rng.IntN(len(order))]
-				if b.Tiles[h].Kind != Empty || minDistance(h, specials) < 3 {
+				if b.Tiles[h].Kind != Empty || minDistance(h, specials) < o.SpecialGap {
 					continue
 				}
 				b.Tiles[h].Kind = k
@@ -141,10 +208,21 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 
 	b.groupSettlements()
 
-	// Remaining spaces: empty, food or energy.
+	// Remaining spaces: exactly o.Food food and o.Energy energy spaces, the rest empty.
+	var rest []hex.Hex
 	for _, h := range order {
-		if t := b.Tiles[h]; t.Kind == Empty {
-			t.Kind = [...]Kind{Empty, Empty, Food, Food, Energy, Energy, Empty}[rng.IntN(7)]
+		if b.Tiles[h].Kind == Empty {
+			rest = append(rest, h)
+		}
+	}
+	if o.Food+o.Energy > len(rest) {
+		return nil, fmt.Errorf("no room for %d food and %d energy spaces", o.Food, o.Energy)
+	}
+	rng.Shuffle(len(rest), func(i, j int) { rest[i], rest[j] = rest[j], rest[i] })
+	for i, h := range rest[:o.Food+o.Energy] {
+		b.Tiles[h].Kind = Food
+		if i >= o.Food {
+			b.Tiles[h].Kind = Energy
 		}
 	}
 
@@ -177,6 +255,79 @@ func Random(seed uint64, o RandomOptions) (*Board, error) {
 		return nil, err
 	}
 	return b, nil
+}
+
+// addIsland grows an island of n spaces off the coast that touches no other
+// land, and appends its spaces to order.
+func addIsland(rng *rand.Rand, b *Board, order []hex.Hex, n int) ([]hex.Hex, bool) {
+	island := map[hex.Hex]bool{}
+	// open reports whether h is water and touches no land outside the island.
+	open := func(h hex.Hex) bool {
+		if b.Tiles[h] != nil || island[h] {
+			return false
+		}
+		for _, x := range h.Neighbors() {
+			if b.Tiles[x] != nil && !island[x] {
+				return false
+			}
+		}
+		return true
+	}
+	for try := 0; try < 100; try++ {
+		// Start 2-3 steps off a coastal space: one or two rows of water in between.
+		h, d := order[rng.IntN(len(order))], rng.IntN(6)
+		if !b.Coast(h) {
+			continue
+		}
+		for b.Tiles[h] != nil {
+			h = h.Neighbor(d)
+		}
+		h = h.Neighbor(d)
+		if rng.IntN(2) == 0 {
+			h = h.Neighbor(d)
+		}
+		if !open(h) {
+			continue
+		}
+		spaces := []hex.Hex{h}
+		island[h] = true
+		for len(spaces) < n {
+			var cand []hex.Hex
+			for _, s := range spaces {
+				for _, x := range s.Neighbors() {
+					// 2 island neighbors keep it compact, like the main land.
+					if open(x) && islandNeighbors(island, x) >= min(2, len(spaces)) {
+						cand = append(cand, x)
+					}
+				}
+			}
+			if len(cand) == 0 {
+				break
+			}
+			x := cand[rng.IntN(len(cand))]
+			island[x] = true
+			spaces = append(spaces, x)
+		}
+		if len(spaces) < n {
+			clear(island)
+			continue
+		}
+		for _, s := range spaces {
+			b.Tiles[s] = &Tile{Kind: Empty}
+		}
+		return append(order, spaces...), true
+	}
+	return order, false
+}
+
+func islandNeighbors(island map[hex.Hex]bool, h hex.Hex) int {
+	n := 0
+	for _, x := range h.Neighbors() {
+		if island[x] {
+			n++
+		}
+	}
+	return n
 }
 
 func landNeighbors(b *Board, h hex.Hex) int {

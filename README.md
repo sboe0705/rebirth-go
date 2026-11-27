@@ -143,10 +143,11 @@ New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in
 
 ## Random maps
 
-`board.Random(seed, board.DefaultRandom)` (`internal/board/random.go`) builds a board of 100 spaces:
-a compact random shape, 4 castles and 3 cathedrals at least 3 spaces apart,
-8 settlements (sizes 1,1,1,2,2,2,3,3) that never touch each other, the rest randomly empty, food or energy,
-3 harbors in different settlements and 3 wind collectors, all at the coast.
+`board.Random(seed, board.DefaultRandom)` (`internal/board/random.go`) builds a board with the space counts of the Scotland map
+(`board.OptionsFrom`, read from `maps/scotland.txt`): 143 spaces, 21 castles and 8 cathedrals that are never adjacent,
+19 settlements (6 small, 9 medium, 4 large) that never touch each other, 8 harbors in different settlements at the coast,
+no wind collectors, 31 food and 31 energy spaces, and the rest empty.
+The land is a compact random shape plus 0–2 islands of 5–7 spaces that are 1–2 rows of water off the coast and touch no other land.
 The same seed always gives the same map.
 
 ## Structure

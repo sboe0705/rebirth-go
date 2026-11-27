@@ -1,6 +1,7 @@
 package board
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/sboe0705/rebirth-go/internal/hex"
@@ -21,7 +22,8 @@ func TestRandomDeterministic(t *testing.T) {
 
 func TestRandomValid(t *testing.T) {
 	o := DefaultRandom
-	for seed := uint64(0); seed < 200; seed++ {
+	islands := map[int]int{} // maps per island count
+	for seed := uint64(0); seed < 300; seed++ {
 		b, err := Random(seed, o)
 		if err != nil {
 			t.Fatalf("seed %d: %v", seed, err)
@@ -45,12 +47,13 @@ func TestRandomValid(t *testing.T) {
 				specials = append(specials, h)
 			}
 		}
-		if count[Castle] != o.Castles || count[Cathedral] != o.Cathedrals ||
+		if count[Castle] != o.Castles || count[Cathedral] != o.Cathedrals || count[RoundTower] != o.RoundTowers ||
+			count[Food] != o.Food || count[Energy] != o.Energy ||
 			bonus[Harbor] != o.Harbors || bonus[WindCollector] != o.WindCollectors {
 			t.Fatalf("seed %d: counts %v, bonus %d", seed, count, bonus)
 		}
 		for i, s := range specials {
-			if d := minDistance(s, specials[i+1:]); d < 3 {
+			if d := minDistance(s, specials[i+1:]); d < o.SpecialGap {
 				t.Fatalf("seed %d: specials %d apart", seed, d)
 			}
 		}
@@ -66,27 +69,55 @@ func TestRandomValid(t *testing.T) {
 				hasBonus[tl.Area] = true
 			}
 		}
-		if !connected(b) {
-			t.Fatalf("seed %d: board not connected", seed)
+		parts := components(b)
+		slices.Sort(parts)
+		if len(parts) > 1+o.MaxIslands {
+			t.Fatalf("seed %d: land parts %v", seed, parts)
+		}
+		for _, n := range parts[:len(parts)-1] {
+			if n < o.IslandMin || n > o.IslandMax {
+				t.Fatalf("seed %d: island of %d spaces", seed, n)
+			}
+		}
+		islands[len(parts)-1]++
+	}
+	for n := 0; n <= o.MaxIslands; n++ {
+		if islands[n] == 0 {
+			t.Errorf("no map with %d islands", n)
 		}
 	}
 }
 
-func connected(b *Board) bool {
-	var start hex.Hex
-	for start = range b.Tiles {
-		break
+// TestDefaultRandomLikeScotland checks that random maps get the Scotland counts.
+func TestDefaultRandomLikeScotland(t *testing.T) {
+	o := DefaultRandom
+	if o.Spaces != 143 || o.Castles != 21 || o.Cathedrals != 8 || o.Harbors != 8 ||
+		o.Food != 31 || o.Energy != 31 || o.WindCollectors != 0 || len(o.Settlements) != 19 {
+		t.Fatalf("options %+v", o)
 	}
-	seen := map[hex.Hex]bool{start: true}
-	for stack := []hex.Hex{start}; len(stack) > 0; {
-		h := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-		for _, n := range h.Neighbors() {
-			if b.Tiles[n] != nil && !seen[n] {
-				seen[n] = true
-				stack = append(stack, n)
+}
+
+// components returns the sizes of the connected land parts.
+func components(b *Board) []int {
+	var sizes []int
+	seen := map[hex.Hex]bool{}
+	for _, start := range b.sortedHexes() {
+		if seen[start] {
+			continue
+		}
+		n := 0
+		seen[start] = true
+		for stack := []hex.Hex{start}; len(stack) > 0; n++ {
+			h := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			for _, x := range h.Neighbors() {
+				if b.Tiles[x] != nil && !seen[x] {
+					seen[x] = true
+					stack = append(stack, x)
+				}
 			}
 		}
+		sizes = append(sizes, n)
 	}
-	return len(seen) == len(b.Tiles)
+	return sizes
 }
