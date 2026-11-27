@@ -20,7 +20,7 @@ func TestHUDRects(t *testing.T) {
 	for i := range all {
 		for j := i + 1; j < len(all); j++ {
 			// the board area may overlap the left panels and the missions box (Fit avoids them)
-			if i < 2 && j == len(all)-1 {
+			if (i < 2 || i == 5) && j == len(all)-1 {
 				continue
 			}
 			if all[i].Overlaps(all[j]) {
@@ -31,8 +31,11 @@ func TestHUDRects(t *testing.T) {
 	if last := u.MissionRow(7); last.Y+last.H > u.Missions.Y+u.Missions.H {
 		t.Fatalf("mission row %v outside the box %v", last, u.Missions)
 	}
-	if u.Log.H < u.Missions.H || u.Missions.Y+u.Missions.H >= u.Panels[3].Y {
-		t.Fatalf("missions box %v, log %v", u.Missions, u.Log)
+	if u.Missions.X != u.Panels[0].X || u.Missions.Y+u.Missions.H >= u.Panels[0].Y {
+		t.Fatalf("missions box %v not above panel 0 %v", u.Missions, u.Panels[0])
+	}
+	if small := NewHUD(w, h).WithMissions(1); small.Missions.H >= u.Missions.H || small.Missions.Y+small.Missions.H != u.Missions.Y+u.Missions.H {
+		t.Fatalf("box for 1 card %v should be a lower part of the box for 8 %v", small.Missions, u.Missions)
 	}
 	if u.Log.Y <= u.Panels[2].Y || u.Log.Y+u.Log.H >= u.Panels[3].Y {
 		t.Fatalf("log %v not between right panels", u.Log)
@@ -81,5 +84,19 @@ func TestFitAvoidsRects(t *testing.T) {
 		if (Rect{x - hw, y - l.Size, 2 * hw, 2 * l.Size}).Overlaps(block) {
 			t.Fatalf("hex %v overlaps the blocked rect", h)
 		}
+	}
+}
+
+func TestFitShiftsBeforeShrinking(t *testing.T) {
+	hs := hexagon(3) // about 12.1 x 11 sizes: a wide area leaves room to the sides
+	area := Rect{0, 0, 1000, 500}
+	free := Fit(hs, area, nil)
+	block := Rect{0, 200, 300, 100} // left of the centered board, clear of a shifted one
+	l := Fit(hs, area, []Rect{block})
+	if math.Abs(l.Size-free.Size) > 1e-9 {
+		t.Fatalf("size %v, want %v (shifted, not shrunk)", l.Size, free.Size)
+	}
+	if x, _ := l.HexToPixel(hex.Hex{}); x <= 500 {
+		t.Fatalf("center at x %v, want shifted right of 500", x)
 	}
 }

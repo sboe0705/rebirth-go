@@ -61,8 +61,9 @@ type game struct {
 	msg     string
 	msgT    int // ticks the message is still shown
 
-	cathedrals   bool // the map has cathedral spaces, so mission cards are in play
-	hoverMission int  // index of the user's mission card under the cursor, -1 for none
+	cathedrals   bool        // the map has cathedral spaces, so mission cards are in play
+	hoverMission int         // index of the user's mission card under the cursor, -1 for none
+	fitBox       layout.Rect // missions box the board layout was fitted around
 }
 
 // say shows message s for a few seconds.
@@ -206,7 +207,7 @@ func (g *game) Draw(screen *ebiten.Image) {
 		render.DrawPanel(screen, g.hud.Panels[i], f, g.panel(i))
 	}
 	hud := g.hudNow()
-	render.DrawLog(screen, hud.Log, f, g.logEntries())
+	render.DrawLog(screen, g.hud.Log, f, g.logEntries())
 	if g.cathedrals {
 		var lines []render.MissionLine
 		for _, m := range g.board.Missions(0) {
@@ -335,12 +336,21 @@ func (g *game) winner() string {
 	return names[0] + " wins."
 }
 
-// Layout uses the full window (resizable / maximizable) and refits the board.
+// Layout uses the full window (resizable / maximizable) and refits the
+// board when the window size or the missions box changes.
 func (g *game) Layout(w, h int) (int, int) {
 	if w != g.w || h != g.h {
 		g.w, g.h = w, h
 		g.hud = layout.NewHUD(float64(w), float64(h))
-		g.layout = layout.Fit(slices.Collect(maps.Keys(g.board.Tiles)), g.hud.Board, g.hud.Panels[:])
+		g.fitBox = layout.Rect{X: -1} // force a refit
+	}
+	if box := g.hudNow().Missions; box != g.fitBox {
+		g.fitBox = box
+		avoid := g.hud.Panels[:]
+		if box.H > 0 {
+			avoid = append(avoid, box)
+		}
+		g.layout = layout.Fit(slices.Collect(maps.Keys(g.board.Tiles)), g.hud.Board, avoid)
 	}
 	return w, h
 }

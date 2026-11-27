@@ -67,8 +67,9 @@ Not modelled: the 32 neutral tiles of the 2-player game and the castle tie-break
 Each player has a panel in a window corner (you bottom left, then clockwise): name, points, score parts, tiles left in supply (and a computer player's level),
 and the tile in hand (yours always, a computer player's while it is placing). The player to move has a frame in their colour and a ▶ marker.
 The right column lists the last 8 moves between the two right panels (as many as fit); messages appear at the bottom.
-On maps with cathedrals the bottom of the right column shows your mission cards (see below).
-The board is fitted to the area left of that column without touching the panels (`internal/layout/hud.go`).
+On maps with cathedrals a box above your panel lists your mission cards (see below); it grows with the cards.
+The board is fitted to the area left of that column without touching the panels or the missions box; if the centered board would touch one,
+it is shifted aside as little as possible before it is made smaller (`internal/layout/hud.go`).
 Text uses the Go fonts (`golang.org/x/image/font/gofont`, BSD license).
 
 Food facilities go on empty or food spaces, energy facilities on empty or energy spaces, settlement tiles on settlement spaces; one tile per space.
