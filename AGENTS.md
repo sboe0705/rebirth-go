@@ -16,7 +16,12 @@ Go implementation of a hex board game using Ebitengine (`github.com/hajimehoshi/
 ## Checks
 ```sh
 go vet ./... && go test ./...
+shellcheck scripts/*.sh
 ./scripts/build.sh
 ```
 The Linux build needs CGO and X11/GL headers (see README); Windows is cross-compiled with `CGO_ENABLED=0`.
 Cover new logic in `hex`, `layout`, `board`, `ai` with tests (they run without a display).
+Shell scripts must pass `shellcheck` (CI) and run with `set -euo pipefail`.
+
+## Release
+`./scripts/release.sh` suggests the next version from the commits since the last tag, runs the checks and pushes the tag `vX.Y.Z` from `main` (`--dry-run` to try it out). `.github/workflows/release.yml` builds `rebirth-linux-amd64.tar.gz` and `rebirth-windows-amd64.zip` (version-independent names) and publishes the GitHub release. Tags with a hyphen are pre-releases.

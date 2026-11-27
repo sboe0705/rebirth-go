@@ -1,0 +1,54 @@
+name: release
+
+# Push a version tag to publish a release, e.g. with ./scripts/release.sh or:
+#   git tag -a v1.0.0 -m v1.0.0 && git push origin v1.0.0
+# Tags with a hyphen (e.g. v1.0.0-rc1) are marked as pre-releases.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-dev libxrandr-dev libxcursor-dev \
+            libxinerama-dev libxi-dev libxxf86vm-dev libasound2-dev pkg-config
+
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh
+
+      - name: Test and build
+        run: ./scripts/build.sh
+
+      # Version-independent names, so releases/latest/download/<name> always
+      # points to the latest build. The tar.gz keeps the executable bit.
+      - name: Package
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          tar -czf dist/rebirth-linux-amd64.tar.gz -C bin rebirth -C .. LICENSE README.md
+          zip -j dist/rebirth-windows-amd64.zip bin/rebirth.exe LICENSE README.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=""
+          [[ "$TAG" == *-* ]] && prerelease="--prerelease"
+          gh release create "$TAG" dist/rebirth-linux-amd64.tar.gz dist/rebirth-windows-amd64.zip \
+            --title "$TAG" \
+            --generate-notes \
+            --verify-tag \
+            $prerelease

@@ -18,6 +18,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1-mesa-dev libxrandr-dev libxcursor-dev \
             libxinerama-dev libxi-dev libxxf86vm-dev libasound2-dev pkg-config
+      - name: Shellcheck
+        run: shellcheck scripts/*.sh
       - run: go vet ./...
       - run: go test ./...
       - run: ./scripts/build-linux.sh

@@ -3,6 +3,12 @@
 PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
 Current state: 1–4 players – you against up to 3 computer players (easy, normal or hard). Tiles are drawn at random from shuffled supplies, with scoring.
 
+## Download
+
+Prebuilt games from the latest release (64-bit):
+[Linux](https://github.com/sboe0705/rebirth-go/releases/latest/download/rebirth-linux-amd64.tar.gz) (unpack, run `./rebirth`) ·
+[Windows](https://github.com/sboe0705/rebirth-go/releases/latest/download/rebirth-windows-amd64.zip) (unpack, run `rebirth.exe`).
+
 ## Requirements
 
 - Go (version see `go.mod`)
@@ -27,6 +33,7 @@ go run ./cmd/rebirth -lax -map <m>   # also loads maps that break the map rules 
 ./scripts/build.sh                   # vet + test + Linux and Windows builds into bin/
 ./scripts/build-linux.sh
 ./scripts/build-windows.sh           # cross-compile, also works from Linux
+./scripts/release.sh                 # tag and publish a new release (see below)
 ```
 
 ## Controls
@@ -87,6 +94,16 @@ or `Computer 1 +1` with `+1 food facility group of 1`, `castle taken over (5 at 
 Not scored: cathedral mission cards, round tower bonuses.
 
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.
+
+### Release
+
+`./scripts/release.sh` shows the latest release tag and the commits since then and suggests the next version
+(a commit with `BREAKING` → major, a subject starting with "Add" or "Remove" → minor, else patch; editable).
+It checks the repo (`shellcheck scripts/*.sh`, `./scripts/build.sh`) and pushes an annotated tag `vX.Y.Z` from `main`
+(`--dry-run` to try it out, `--help` for all options).
+The tag triggers `.github/workflows/release.yml`, which builds `rebirth-linux-amd64.tar.gz` and `rebirth-windows-amd64.zip`
+(binary, `LICENSE`, `README.md`) and publishes them as a GitHub release. The names are version-independent, so the download links above always point to the latest release.
+Tags with a hyphen (e.g. `v1.0.0-rc1`) are marked as pre-releases.
 
 ## Map format
 
@@ -164,5 +181,5 @@ internal/layout/    hex <-> pixel (pointy-top), corner points
 internal/board/     Tile/Board model, map loader, embedded maps
 internal/ai/        computer player strategies (no rendering)
 internal/render/    drawing with ebiten/v2/vector
-scripts/            build scripts
+scripts/            build and release scripts
 ```
