@@ -67,17 +67,37 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 			if settlements {
 				border = settlementBorder
 			}
-			drawHex(dst, l, h, 1, kindCol[t.Kind], border)
 			x, y := l.HexToPixel(h)
 			cx, cy, sz := float32(x), float32(y), float32(l.Size)
+			img := terrainImage(t.Kind, h)
+			if img != nil {
+				drawTerrain(dst, l, h, img)
+				drawHex(dst, l, h, 1, nil, border)
+			} else {
+				drawHex(dst, l, h, 1, kindCol[t.Kind], border)
+			}
 			switch {
 			case b.Blocked(h):
 				drawNeutral(dst, l, h)
 			case t.Piece != board.NoPiece:
 				drawPiece(dst, l, h, board.Chip{Piece: t.Piece, Houses: t.Houses}, t.Owner)
+			case t.Bonus != board.NoBonus && img != nil:
+				// The terrain shows the kind; a light plus with an outline stays readable on it.
+				drawPlus(dst, cx, cy-0.55*sz, 0.17*sz, borderCol)
+				drawPlus(dst, cx, cy-0.55*sz, 0.12*sz, highlightCol)
 			case t.Bonus != board.NoBonus:
 				drawKindIcon(dst, t.Kind, cx, cy+0.15*sz, 0.4*sz, darker(kindCol[t.Kind]))
 				drawPlus(dst, cx, cy-0.55*sz, 0.15*sz, bonusCol)
+			case img != nil:
+				if p, ok := b.CastleOwner(h); ok && t.Kind == board.Castle {
+					// Controlled castle: a flag-sized icon in the owner's colour on the terrain.
+					is := 0.4 * sz
+					drawKindIcon(dst, t.Kind, cx, cy, is, PlayerColors[p])
+					outlinePoly(dst, castleIcon, cx, cy, is, borderCol, float32(lineWidth(l, 1)))
+				}
+				if t.Kind == board.Cathedral {
+					drawStack(dst, b.CathedralStack(h), cx, cy+0.64*sz, sz)
+				}
 			default:
 				is := 0.45 * sz
 				if t.Kind == board.Castle {

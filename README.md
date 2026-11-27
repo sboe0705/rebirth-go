@@ -77,6 +77,9 @@ A facility may go on a space of the other facility type only if no free empty sp
 The hovered space shows a preview, or a red outline if the tile is not allowed there.
 Placed tiles are drawn as smaller hexagons with an icon: food with leaf, energy with lightning bolt, settlement with 1–4 houses (its settlement symbols). The placement preview shows the tile in its kind colour: food `#2e6b1f` dark green, energy `#d9822b` orange, settlement `#b0302a` red.
 Space icons are drawn in a darker shade (55 %) of the space color.
+Food, energy, settlement, castle and cathedral spaces are drawn with terrain images instead (`internal/render/terrain/<kind>_<n>.png`, pointy-top hexagons with a transparent outside;
+the variant is picked from the space coordinates). Their kind icon is left out; a harbor or wind collector shows a white plus, a controlled castle a small castle icon in the owner's colour.
+Empty spaces and round towers keep their plain color and icon. A kind gets images by adding `<kind>_1.png`, `<kind>_2.png`, … and an entry in `terrainNames` (`internal/render/terrain.go`).
 
 ### Scoring (`internal/board/score.go`)
 
@@ -196,7 +199,7 @@ With 1, 3 or 4 players the grid is ignored.
 
 Castles and cathedrals have no names; they are numbered (`C1…`, `K1…`, see mission cards).
 
-New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go` and an icon in `internal/render/icons.go`.
+New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go` and an icon in `internal/render/icons.go` (optionally terrain images, see above).
 
 ## Random maps
 
