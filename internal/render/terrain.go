@@ -21,6 +21,7 @@ import (
 var terrainFS embed.FS
 
 var terrainNames = map[board.Kind]string{
+	board.Empty:      "empty",
 	board.Food:       "food",
 	board.Energy:     "energy",
 	board.Settlement: "settlement",
