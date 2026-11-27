@@ -130,6 +130,11 @@ type Board struct {
 	points    map[int]int     // points per player scored while placing tiles, see Score
 	castles   map[hex.Hex]int // controlling player per castle space
 	lastGains []Gain          // how the most recent placement scored
+
+	deck       []Mission          // hidden mission cards, drawn from the front
+	missions   map[int][]Mission  // mission cards held per player
+	cathedrals map[hex.Hex][]int  // players with a cathedral per cathedral space, bottom first
+	labels     map[hex.Hex]string // "C1", "K1", ... per castle / cathedral space
 }
 
 //go:embed maps/*.txt
@@ -201,6 +206,7 @@ func Parse(name, text string) (*Board, error) {
 		return nil, err
 	}
 	b.groupSettlements()
+	b.labelSpecials()
 	if err := b.validate(); err != nil {
 		return b, fmt.Errorf("%s: %w", name, err) // the board is usable, see Parse
 	}
@@ -313,7 +319,9 @@ func (b *Board) sortedHexes() []hex.Hex {
 }
 
 // Clone returns a copy of b that can be played on without changing b,
-// e.g. to try out a placement. Settlement areas are shared; they never change.
+// e.g. to try out a placement. Settlement areas and labels are shared; they
+// never change. The clone has no mission deck: a trial placement must not
+// reveal the hidden top card, so it draws none.
 func (b *Board) Clone() *Board {
 	c := *b
 	c.Tiles = make(map[hex.Hex]*Tile, len(b.Tiles))
@@ -324,6 +332,9 @@ func (b *Board) Clone() *Board {
 	c.points = maps.Clone(b.points)
 	c.castles = maps.Clone(b.castles)
 	c.lastGains = slices.Clone(b.lastGains)
+	c.deck = nil
+	c.missions = maps.Clone(b.missions)     // the slices are copied on write
+	c.cathedrals = maps.Clone(b.cathedrals) // the slices are copied on write
 	return &c
 }
 

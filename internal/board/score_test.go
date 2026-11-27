@@ -56,8 +56,8 @@ func TestScore(t *testing.T) {
 			t.Errorf("%s: Score() = %+v, want %+v", c.name, got, c.want)
 		}
 	}
-	if got := (Score{1, 5, 2}).Total(); got != 8 {
-		t.Errorf("Total = %d, want 8", got)
+	if got := (Score{1, 5, 2, 3}).Total(); got != 11 {
+		t.Errorf("Total = %d, want 11", got)
 	}
 }
 

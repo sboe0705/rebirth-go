@@ -23,6 +23,26 @@ type HUD struct {
 	Panels [4]Rect // index = player
 	Log    Rect
 	Board  Rect // area for the board; it still has to avoid the left panels
+	// Missions is the box with the user's mission cards at the bottom of the
+	// right column (empty until WithMissions); the log ends above it.
+	Missions Rect
+}
+
+// WithMissions returns u with a missions box for n card lines (at least 1)
+// at the bottom of the log column; the log gets the rest. The box never
+// takes more than half the column.
+func (u HUD) WithMissions(n int) HUD {
+	f := u.Font
+	h := math.Min((3.0+1.2*float64(max(n, 1)))*f, u.Log.H/2)
+	u.Missions = Rect{u.Log.X, u.Log.Y + u.Log.H - h, u.Log.W, h}
+	u.Log.H = math.Max(0, u.Log.H-h-u.Gap)
+	return u
+}
+
+// MissionRow returns the rectangle of card line i in the missions box.
+func (u HUD) MissionRow(i int) Rect {
+	f := u.Font
+	return Rect{u.Missions.X, u.Missions.Y + 2.3*f + 1.2*f*float64(i), u.Missions.W, 1.2 * f}
 }
 
 // NewHUD computes the HUD for a w×h window; sizes scale with the height.
@@ -32,8 +52,8 @@ func NewHUD(w, h float64) HUD {
 	pw, ph := 16*f, 7.4*f
 	right := w - g - pw
 	return HUD{
-		Font: f,
-		Gap:  g,
+		Font:     f,
+		Gap:      g,
 		Panels: [4]Rect{
 			{g, h - g - ph, pw, ph},
 			{g, g, pw, ph},

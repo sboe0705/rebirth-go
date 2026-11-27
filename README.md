@@ -1,7 +1,7 @@
 # rebirth-go
 
 PC implementation of a hex board game in Go using [Ebitengine](https://ebitengine.org/).
-Current state: 1–4 players – you against up to 3 computer players (easy, normal or hard). Tiles are drawn at random from shuffled supplies, with scoring.
+Current state: 1–4 players – you against up to 3 computer players (easy, normal or hard). Tiles are drawn at random from shuffled supplies, with scoring, castles and Scotland mission cards.
 
 ## Download
 
@@ -59,14 +59,15 @@ The game ends when all supplies are empty; the points shown then are the final s
 You are player 1 (blue) and start; computer players (red, yellow, green) follow in turn order.
 A computer player places its tile after a short pause (`internal/ai`); all computer players have the same level:
 - **easy** – a random allowed space,
-- **normal** – the space that raises its points (as if the game ended now, castles and open settlements included) the most with this tile; no planning ahead, ties at random,
+- **normal** – the space that raises its points (as if the game ended now, castles, open settlements and its own mission cards included) the most with this tile; no planning ahead, ties at random,
 - **hard** – for now the same as easy.
 Placed tiles are filled with the owner's colour with a black border and a white icon (dark on yellow tiles); a controlled castle shows its icon in the owner's colour with a black outline.
 Not modelled: the 32 neutral tiles of the 2-player game and the castle tie-break for the winner (a tie is shared).
 
 Each player has a panel in a window corner (you bottom left, then clockwise): name, points, score parts, tiles left in supply (and a computer player's level),
 and the tile in hand (yours always, a computer player's while it is placing). The player to move has a frame in their colour and a ▶ marker.
-The right column lists the last 8 moves between the two right panels; messages appear at the bottom.
+The right column lists the last 8 moves between the two right panels (as many as fit); messages appear at the bottom.
+On maps with cathedrals the bottom of the right column shows your mission cards (see below).
 The board is fitted to the area left of that column without touching the panels (`internal/layout/hud.go`).
 Text uses the Go fonts (`golang.org/x/image/font/gofont`, BSD license).
 
@@ -87,11 +88,44 @@ Each panel shows the player's points as if the game ended now, split into:
 - **castles** – 5 per controlled castle. The first adjacent tile controls a castle; a player takes it over with the most adjacent tiles,
   or when tied for most with the most adjacent facilities among the tied players; otherwise it stays.
 - **open settlements** – houses on the player's tiles in incomplete settlements.
+- **missions** – fulfilled mission cards (see below).
 
 The move log explains each placement, e.g. `You +9` with `+1 harbor` and `+8 medium settlement completed`,
 or `Computer 1 +1` with `+1 food facility group of 1`, `castle taken over (5 at game end)` and `You: castle lost`.
 
-Not scored: cathedral mission cards, round tower bonuses.
+Not scored: round tower bonuses.
+
+### Cathedrals and mission cards (`internal/board/mission.go`)
+
+Scotland rules (SCO p. 4, player aid): a player who places a tile next to a cathedral space puts one of their cathedrals on it
+(shown as a row of dots in the players' colours) and draws the top mission card – at most once per cathedral space and player.
+Cards are secret and score at game end: 5 points if fulfilled, a tie for first is enough; a Cathedral Bonus card scores 3 without a condition.
+A card scores only for its owner; "most" always compares with the other players.
+
+| Card | Counts for a player |
+|---|---|
+| Most food / energy groups of 3+ | own groups of 3 or more of that facility (a group of 6 is 1 group) |
+| Largest food / energy facility | size of the largest own group of that facility |
+| Presence in medium / large settlements | settlements of size 2 / 3 with at least 1 own tile |
+| Ownership of small / medium settlements | settlements of size 1 / 2 where every space holds an own tile |
+| Longest coastline | largest connected group of own tiles on coast spaces; castles, cathedrals and other spaces interrupt it |
+| Most harbors | own tiles on harbor spaces |
+| Most cathedrals | cathedral spaces with an own cathedral |
+| Most castles | controlled castles |
+| Tiles around castle Cn / cathedral Kn | own tiles next to that space (tile type and castle owner don't matter) |
+| Cathedral bonus | no condition, 3 points |
+
+Castles and cathedrals are numbered `C1…` and `K1…` in map order (by row, then column); the labels are drawn on the spaces when the window is large enough to read them.
+The deck (32 cards, the rules don't give the mix) is built from the map and shuffled with the seed: each card above once,
+one "Tiles around cathedral" card per cathedral, 3 Cathedral Bonus cards and random distinct "Tiles around castle" cards for the rest.
+The "English border" card is not modelled (our maps have no England).
+
+Our reading where the rules are open: a count of 0 never fulfils a card (the rules say so only for the ownership cards);
+the coastline "chain" is the largest connected group; a tile next to two cathedral spaces counts for both;
+a locked cathedral (2 players) gives nothing; an empty deck gives a cathedral but no card.
+
+Your cards are listed with their current state (`+5` fulfilled, `0` not yet); hovering a card outlines the castle or cathedral it names.
+Computer players' cards are hidden: their panels show the number of cards, and their points leave the missions out until the game is over.
 
 CI (`.github/workflows/build.yml`) builds for Linux and Windows on every push and uploads the binaries as artifacts.
 
@@ -159,7 +193,7 @@ With 2 players a locked space is drawn as a grey tile with a cross and counts as
 
 With 1, 3 or 4 players the grid is ignored.
 
-Not yet modelled: castle/cathedral names.
+Castles and cathedrals have no names; they are numbered (`C1…`, `K1…`, see mission cards).
 
 New space kinds: `internal/board/board.go` (`Kind`, `kindChars`) plus a color in `internal/render/render.go` and an icon in `internal/render/icons.go`.
 

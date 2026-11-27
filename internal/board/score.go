@@ -8,7 +8,7 @@ import (
 )
 
 // Scoring per player, Rebirth rules SCO p. 3–4, IRL p. 3–4.
-// Mission cards and round tower bonuses are not scored.
+// Round tower bonuses are not scored; mission cards see mission.go.
 
 // CastlePoints is the final score per controlled castle.
 const CastlePoints = 5
@@ -23,10 +23,11 @@ type Score struct {
 	Placed          int // points scored while placing tiles
 	Castles         int // final scoring: 5 per controlled castle
 	OpenSettlements int // final scoring: houses in incomplete settlements
+	Missions        int // final scoring: fulfilled mission cards (secret during the game)
 }
 
 // Total returns the score as if the game ended now.
-func (s Score) Total() int { return s.Placed + s.Castles + s.OpenSettlements }
+func (s Score) Total() int { return s.Placed + s.Castles + s.OpenSettlements + s.Missions }
 
 // Gain is one part of the points scored by a placement: the player who gets
 // them and the reason. Points 0 is a note, e.g. a castle changing hands.
@@ -41,12 +42,16 @@ var settlementNames = map[int]string{1: "small", 2: "medium", 3: "large", 4: "ex
 // placeGains returns the points for the piece just placed at h:
 // facilities score the size of their group, a harbor or wind collector
 // scores 1, and a completed settlement scores its ranks. Castle control
-// changes are listed with 0 points (castles score at game end).
+// changes and mission cards drawn at cathedrals are listed with 0 points
+// (they score at game end).
 func (b *Board) placeGains(h hex.Hex) []Gain {
 	g := b.pieceGains(h)
 	for _, n := range h.Neighbors() {
 		if t := b.Tiles[n]; t != nil && t.Kind == Castle && !b.Blocked(n) {
 			g = append(g, b.updateCastle(n, b.Tiles[h].Owner)...)
+		}
+		if t := b.Tiles[n]; t != nil && t.Kind == Cathedral && !b.Blocked(n) {
+			g = append(g, b.visitCathedral(n, b.Tiles[h].Owner)...)
 		}
 	}
 	return g
@@ -207,7 +212,7 @@ func (b *Board) complete(a *SettlementArea) bool {
 // Score returns player p's placement points plus the final scoring as if
 // the game ended now.
 func (b *Board) Score(p int) Score {
-	s := Score{Placed: b.points[p]}
+	s := Score{Placed: b.points[p], Missions: b.missionScore(p)}
 	for _, o := range b.castles {
 		if o == p {
 			s.Castles += CastlePoints

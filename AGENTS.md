@@ -3,7 +3,7 @@
 Notes for AI agents and contributors.
 
 ## Project
-Go implementation of a hex board game using Ebitengine (`github.com/hajimehoshi/ebiten/v2`). Goal: playable PC version including a computer opponent. Currently 1–4 players (the user plus computer players on level easy, normal or hard, see `internal/ai`): random draws from shuffled tile supplies, placement and scoring (no mission cards).
+Go implementation of a hex board game using Ebitengine (`github.com/hajimehoshi/ebiten/v2`). Goal: playable PC version including a computer opponent. Currently 1–4 players (the user plus computer players on level easy, normal or hard, see `internal/ai`): random draws from shuffled tile supplies, placement and scoring including castles and Scotland mission cards (no round tower bonuses).
 
 ## Rules
 - Minimal and working; short explanations. Language for docs, comments, commit messages and user-facing text: **English**.

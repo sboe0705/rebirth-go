@@ -207,6 +207,7 @@ func randomBoard(rng *rand.Rand, o RandomOptions) (*Board, error) {
 	}
 
 	b.groupSettlements()
+	b.labelSpecials()
 
 	// Remaining spaces: exactly o.Food food and o.Energy energy spaces, the rest empty.
 	var rest []hex.Hex

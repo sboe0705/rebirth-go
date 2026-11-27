@@ -9,9 +9,9 @@ import (
 
 func TestHUDRects(t *testing.T) {
 	w, h := 1024.0, 768.0
-	u := NewHUD(w, h)
+	u := NewHUD(w, h).WithMissions(8)
 	win := Rect{0, 0, w, h}
-	all := append(u.Panels[:], u.Log, u.Board)
+	all := append(u.Panels[:], u.Log, u.Missions, u.Board)
 	for i, r := range all {
 		if r.X < 0 || r.Y < 0 || r.X+r.W > win.W || r.Y+r.H > win.H || r.W <= 0 || r.H <= 0 {
 			t.Fatalf("rect %d %v outside window", i, r)
@@ -19,7 +19,7 @@ func TestHUDRects(t *testing.T) {
 	}
 	for i := range all {
 		for j := i + 1; j < len(all); j++ {
-			// the board area may overlap the left panels (Fit avoids them)
+			// the board area may overlap the left panels and the missions box (Fit avoids them)
 			if i < 2 && j == len(all)-1 {
 				continue
 			}
@@ -27,6 +27,12 @@ func TestHUDRects(t *testing.T) {
 				t.Fatalf("rects %d %v and %d %v overlap", i, all[i], j, all[j])
 			}
 		}
+	}
+	if last := u.MissionRow(7); last.Y+last.H > u.Missions.Y+u.Missions.H {
+		t.Fatalf("mission row %v outside the box %v", last, u.Missions)
+	}
+	if u.Log.H < u.Missions.H || u.Missions.Y+u.Missions.H >= u.Panels[3].Y {
+		t.Fatalf("missions box %v, log %v", u.Missions, u.Log)
 	}
 	if u.Log.Y <= u.Panels[2].Y || u.Log.Y+u.Log.H >= u.Panels[3].Y {
 		t.Fatalf("log %v not between right panels", u.Log)

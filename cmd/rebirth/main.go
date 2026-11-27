@@ -60,6 +60,9 @@ type game struct {
 	moves   []move // newest first, at most logLen
 	msg     string
 	msgT    int // ticks the message is still shown
+
+	cathedrals   bool // the map has cathedral spaces, so mission cards are in play
+	hoverMission int  // index of the user's mission card under the cursor, -1 for none
 }
 
 // say shows message s for a few seconds.
@@ -77,6 +80,7 @@ func (g *game) start(n int) {
 		}
 		g.players = append(g.players, p)
 	}
+	g.board.SetDeck(board.NewDeck(g.board, g.seed^0x5851f42d4c957f2d))
 	g.turn = n - 1
 	g.nextTurn()
 }
@@ -121,8 +125,12 @@ func (g *game) nextTurn() {
 // place puts the current player's tile at h, draws a new one and ends the turn.
 func (g *game) place(h hex.Hex) error {
 	p := g.players[g.turn]
+	cards := len(g.board.Missions(0))
 	if err := g.board.PlaceChip(h, p.hand, g.turn); err != nil {
 		return err
+	}
+	if ms := g.board.Missions(0); len(ms) > cards {
+		g.say("New mission card: " + g.board.MissionName(ms[len(ms)-1]))
 	}
 	g.moves = append([]move{{g.turn, p.hand, g.board.LastGains()}}, g.moves...)
 	g.moves = g.moves[:min(len(g.moves), logLen)]
@@ -151,6 +159,13 @@ func (g *game) Update() error {
 	}
 	x, y := ebiten.CursorPosition()
 	g.hover = g.layout.PixelToHex(float64(x), float64(y))
+	g.hoverMission = -1
+	hud := g.hudNow()
+	for i := range g.board.Missions(0) {
+		if r := hud.MissionRow(i); g.cathedrals && float64(x) >= r.X && float64(x) < r.X+r.W && float64(y) >= r.Y && float64(y) < r.Y+r.H {
+			g.hoverMission = i
+		}
+	}
 	if g.over {
 		return nil
 	}
@@ -175,6 +190,7 @@ func (g *game) Update() error {
 func (g *game) Draw(screen *ebiten.Image) {
 	screen.Fill(render.Background)
 	render.DrawBoard(screen, g.board, g.layout)
+	render.DrawLabels(screen, g.board, g.layout)
 	f := g.hud.Font
 	if g.players == nil {
 		render.DrawBanner(screen, fmt.Sprintf("Computer players: %v (press E, N or H for easy, normal or hard). "+
@@ -189,7 +205,18 @@ func (g *game) Draw(screen *ebiten.Image) {
 	for i := range g.players {
 		render.DrawPanel(screen, g.hud.Panels[i], f, g.panel(i))
 	}
-	render.DrawLog(screen, g.hud.Log, f, g.logEntries())
+	hud := g.hudNow()
+	render.DrawLog(screen, hud.Log, f, g.logEntries())
+	if g.cathedrals {
+		var lines []render.MissionLine
+		for _, m := range g.board.Missions(0) {
+			lines = append(lines, render.MissionLine{Name: g.board.MissionName(m), Points: m.Points(), Fulfilled: g.board.Fulfilled(m, 0)})
+		}
+		render.DrawMissions(screen, hud, lines, g.hoverMission)
+		if ms := g.board.Missions(0); g.hoverMission >= 0 && (ms[g.hoverMission].Kind == board.CastleTiles || ms[g.hoverMission].Kind == board.CathedralTiles) {
+			render.DrawHighlight(screen, g.layout, ms[g.hoverMission].Target)
+		}
+	}
 	// messages at the bottom, centered between the two bottom panels
 	l, r := g.hud.Panels[0], g.hud.Panels[3]
 	cx, cy, mw := (l.X+l.W+r.X)/2, l.Y+l.H-2*f, r.X-l.X-l.W-2*g.hud.Gap
@@ -201,7 +228,18 @@ func (g *game) Draw(screen *ebiten.Image) {
 	}
 }
 
-// panel collects what the corner panel of player i shows.
+// hudNow returns the HUD with the missions box sized for the user's cards
+// (no box on maps without cathedrals or before the game starts).
+func (g *game) hudNow() layout.HUD {
+	if !g.cathedrals || g.players == nil {
+		return g.hud
+	}
+	return g.hud.WithMissions(len(g.board.Missions(0)))
+}
+
+// panel collects what the corner panel of player i shows. A computer
+// player's mission cards are secret: their points are left out until the
+// game is over.
 func (g *game) panel(i int) render.Panel {
 	q, sc := g.players[i], g.board.Score(i)
 	pn := render.Panel{
@@ -211,6 +249,15 @@ func (g *game) panel(i int) render.Panel {
 			fmt.Sprintf("placed %d · castles %d · open %d", sc.Placed, sc.Castles, sc.OpenSettlements),
 			fmt.Sprintf("%d tiles in supply", q.supply.Len()),
 		},
+	}
+	if cards := len(g.board.Missions(i)); g.cathedrals {
+		switch {
+		case g.over:
+			pn.Detail[1] = fmt.Sprintf("missions +%d (%d cards)", sc.Missions, cards)
+		case q.computer:
+			pn.Points -= sc.Missions
+			pn.Detail[1] = fmt.Sprintf("%d tiles · %d missions", q.supply.Len(), cards)
+		}
 	}
 	if q.computer {
 		pn.Detail[1] += " · " + g.level.String()
@@ -337,7 +384,10 @@ func main() {
 		title += fmt.Sprintf(" (seed %d)", *seed)
 	}
 	ebiten.SetWindowTitle(title)
-	g := &game{board: b, seed: *seed, level: lvl}
+	g := &game{board: b, seed: *seed, level: lvl, hoverMission: -1}
+	for _, t := range b.Tiles {
+		g.cathedrals = g.cathedrals || t.Kind == board.Cathedral
+	}
 	if *players > 0 {
 		g.start(*players)
 	}

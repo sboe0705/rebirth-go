@@ -25,7 +25,13 @@ var (
 	panelEdge = color.RGBA{0x5a, 0x6a, 0x7a, 0xff}
 	textCol   = color.RGBA{0xff, 0xff, 0xff, 0xff}
 	dimCol    = color.RGBA{0xc8, 0xd2, 0xdc, 0xff}
+	doneCol   = color.RGBA{0x8c, 0xe0, 0x7a, 0xff} // fulfilled mission card
+	hoverBg   = color.RGBA{0x30, 0x40, 0x52, 0xff}
+	labelCol  = color.RGBA{0x20, 0x20, 0x20, 0xff} // castle / cathedral labels
 )
+
+// minLabelFont is the smallest font size in pixels for space labels.
+const minLabelFont = 8
 
 func mustFont(ttf []byte) *text.GoTextFaceSource {
 	s, err := text.NewGoTextFaceSource(bytes.NewReader(ttf))
@@ -52,6 +58,80 @@ type LogEntry struct {
 	Chip   board.Chip
 	Head   string   // e.g. "You +9"
 	Lines  []string // reasons, wrapped to the log width
+}
+
+// MissionLine is one of the user's mission cards in the missions box.
+type MissionLine struct {
+	Name      string
+	Points    int // points when fulfilled
+	Fulfilled bool
+}
+
+// DrawMissions draws the user's mission cards into the missions box of u;
+// line hover (-1 for none) is highlighted.
+func DrawMissions(dst *ebiten.Image, u layout.HUD, lines []MissionLine, hover int) {
+	r, f := u.Missions, u.Font
+	if r.H < 3*f {
+		return
+	}
+	vector.FillRect(dst, float32(r.X), float32(r.Y), float32(r.W), float32(r.H), panelBg, true)
+	vector.StrokeRect(dst, float32(r.X), float32(r.Y), float32(r.W), float32(r.H), 1, panelEdge, true)
+	pad := 0.7 * f
+	total := 0
+	for _, m := range lines {
+		if m.Fulfilled {
+			total += m.Points
+		}
+	}
+	drawText(dst, "Your missions", bold, f, r.X+pad, r.Y+pad, textCol)
+	if len(lines) > 0 {
+		t := "+" + strconv.Itoa(total)
+		drawText(dst, t, bold, f, r.X+r.W-pad-text.Advance(t, &text.GoTextFace{Source: bold, Size: f}), r.Y+pad, textCol)
+	} else {
+		for i, s := range wrap("Place a tile next to a cathedral to draw a card.", regular, 0.9*f, r.W-2*pad) {
+			drawText(dst, s, regular, 0.9*f, r.X+pad, u.MissionRow(i).Y, dimCol)
+		}
+	}
+	for i, m := range lines {
+		row := u.MissionRow(i)
+		if row.Y+row.H > r.Y+r.H {
+			break
+		}
+		if i == hover {
+			vector.FillRect(dst, float32(row.X+1), float32(row.Y), float32(row.W-2), float32(row.H), hoverBg, true)
+		}
+		pts, c := "0", dimCol
+		if m.Fulfilled {
+			pts, c = "+"+strconv.Itoa(m.Points), doneCol
+		}
+		ty := row.Y + 0.1*f
+		drawText(dst, pts, bold, 0.9*f, r.X+pad, ty, c)
+		// shrink long names to the box width
+		nx, w := r.X+pad+2.2*f, r.W-2*pad-2.2*f
+		size := 0.9 * f
+		if a := text.Advance(m.Name, &text.GoTextFace{Source: regular, Size: size}); a > w {
+			size *= w / a
+		}
+		drawText(dst, m.Name, regular, size, nx, ty+(0.9*f-size)/2, c)
+	}
+}
+
+// DrawLabels writes the labels of castle and cathedral spaces ("C7", "K3")
+// at the top of the space, if the spaces are large enough to read them.
+func DrawLabels(dst *ebiten.Image, b *board.Board, l layout.Layout) {
+	size := 0.3 * l.Size
+	if size < minLabelFont {
+		return
+	}
+	face := &text.GoTextFace{Source: bold, Size: size}
+	for h := range b.Tiles {
+		s := b.Label(h)
+		if s == "" || b.Blocked(h) {
+			continue
+		}
+		x, y := l.HexToPixel(h)
+		drawText(dst, s, bold, size, x-text.Advance(s, face)/2, y-0.9*l.Size, labelCol)
+	}
 }
 
 // DrawPanel draws player panel p into r with font size f.

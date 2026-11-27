@@ -33,10 +33,11 @@ var (
 		board.EnergyFacility: {0xd9, 0x82, 0x2b, 0xff},
 		board.SettlementTile: {0xb0, 0x30, 0x2a, 0xff},
 	}
-	invalidCol  = color.RGBA{0xe0, 0x30, 0x30, 0xff}
-	neutralCol  = color.RGBA{0x8c, 0x8c, 0x8c, 0xff} // neutral tile on a blocked space
-	neutralMark = color.RGBA{0x5c, 0x5c, 0x5c, 0xff}
-	iconOnPiece = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	invalidCol   = color.RGBA{0xe0, 0x30, 0x30, 0xff}
+	neutralCol   = color.RGBA{0x8c, 0x8c, 0x8c, 0xff} // neutral tile on a blocked space
+	neutralMark  = color.RGBA{0x5c, 0x5c, 0x5c, 0xff}
+	iconOnPiece  = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	highlightCol = color.RGBA{0xff, 0xff, 0xff, 0xff}
 
 	// PlayerColors are the player colours (index = player), shown as the
 	// fill of placed tiles and as the icon of controlled castles.
@@ -89,9 +90,29 @@ func DrawBoard(dst *ebiten.Image, b *board.Board, l layout.Layout) {
 					break
 				}
 				drawKindIcon(dst, t.Kind, cx, cy, is, darker(kindCol[t.Kind]))
+				if t.Kind == board.Cathedral {
+					drawStack(dst, b.CathedralStack(h), cx, cy+0.64*sz, sz)
+				}
 			}
 		}
 	}
+}
+
+// drawStack draws the cathedrals on a cathedral space as a row of small
+// circles in the players' colours, centered at (x, y), bottom of the stack first.
+func drawStack(dst *ebiten.Image, players []int, x, y, size float32) {
+	r, step := 0.11*size, 0.27*size
+	x0 := x - step*float32(len(players)-1)/2
+	for i, p := range players {
+		cx := x0 + step*float32(i)
+		vector.FillCircle(dst, cx, y, r, PlayerColors[p], true)
+		vector.StrokeCircle(dst, cx, y, r, max(1, 0.025*size), borderCol, true)
+	}
+}
+
+// DrawHighlight outlines space h, e.g. the target of a hovered mission card.
+func DrawHighlight(dst *ebiten.Image, l layout.Layout, h hex.Hex) {
+	strokePath(dst, l, hexPath(l, h, 0.9), highlightCol, 4)
 }
 
 // drawPiece draws tile c of player owner on space h: filled with the

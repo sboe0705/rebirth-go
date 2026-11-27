@@ -15,7 +15,7 @@ type Level int
 
 const (
 	Easy   Level = iota // random allowed space
-	Normal              // space with the most points right now
+	Normal              // space with the most points right now, own mission cards included
 	Hard                // for now the same as Easy
 )
 
@@ -55,7 +55,9 @@ func Choose(b *board.Board, c board.Chip, p int, l Level, rng *rand.Rand) hex.He
 }
 
 // best returns the spaces that raise p's score (as if the game ended now)
-// the most. It looks only at this placement, not at later moves.
+// the most. It looks only at this placement, not at later moves. The score
+// counts p's own mission cards; a card drawn by the trial placement is not
+// known (board.Clone hides the deck), so it adds nothing.
 func best(b *board.Board, c board.Chip, p int, free []hex.Hex) []hex.Hex {
 	before := b.Score(p).Total()
 	var top []hex.Hex
